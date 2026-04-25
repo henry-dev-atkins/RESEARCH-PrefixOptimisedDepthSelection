@@ -119,6 +119,7 @@ def test_summarise_results_groups_runs_by_dataset_model_and_baseline(tmp_path) -
           "task": {"dataset": "cifar10"},
           "model": {"family": "resnet"},
           "baseline": {"kind": "pods"},
+          "training": {"mode": "all"},
           "experiment": {"seed": 7},
           "selected_depth": 2,
           "selection_spec": {"quality_metric": "accuracy", "cost_metric": "latency_ms_p50"},
@@ -146,7 +147,7 @@ def test_summarise_results_groups_runs_by_dataset_model_and_baseline(tmp_path) -
         encoding="utf-8",
     )
     summary = summarise_results(raw_root)
-    key = "cifar10:resnet:pods"
+    key = "cifar10:resnet:pods_all"
     assert key in summary
     assert summary[key]["seeds"] == [7]
     assert summary[key]["selection_quality_metric"] == "accuracy"
@@ -155,3 +156,45 @@ def test_summarise_results_groups_runs_by_dataset_model_and_baseline(tmp_path) -
     assert summary[key]["selection_costs_by_depth_and_batch_size"]["latency_ms_p50"]["4"]["2"]["mean"] == 2.5
     assert summary[key]["final_results_by_depth"]["loss"]["2"]["mean"] == 0.65
     assert summary[key]["final_costs_by_batch_size"]["model_bytes"]["1"]["2"]["mean"] == 2000.0
+
+
+def test_summarise_results_separates_pods_training_modes(tmp_path) -> None:
+    raw_root = tmp_path / "raw"
+    for run_name, training_mode, accuracy in (
+        ("run_all", "all", 0.81),
+        ("run_sandwich", "sandwich", 0.77),
+    ):
+        run_dir = raw_root / run_name
+        run_dir.mkdir(parents=True)
+        (run_dir / "results.json").write_text(
+            f"""
+            {{
+              "task": {{"dataset": "cifar10"}},
+              "model": {{"family": "resnet"}},
+              "baseline": {{"kind": "pods"}},
+              "training": {{"mode": "{training_mode}"}},
+              "experiment": {{"seed": 7}},
+              "selected_depth": 3,
+              "selection_spec": {{"quality_metric": "accuracy", "cost_metric": "latency_ms_p50"}},
+              "selection_results": {{
+                "3": {{"accuracy": {accuracy}, "loss": 0.7}}
+              }},
+              "cost_results": {{
+                "3": {{
+                  "1": {{"latency_ms_p50": 2.0, "latency_ms_p95": 2.2, "throughput_items_per_s": 80.0, "peak_memory_mb": 20.0, "model_bytes": 2000}}
+                }}
+              }},
+              "final_results": {{"3": {{"accuracy": {accuracy}, "loss": 0.65}}}},
+              "final_costs": {{
+                "1": {{"latency_ms_p50": 2.1, "latency_ms_p95": 2.3, "throughput_items_per_s": 79.0, "peak_memory_mb": 21.0, "model_bytes": 2000}}
+              }}
+            }}
+            """,
+            encoding="utf-8",
+        )
+
+    summary = summarise_results(raw_root)
+    assert "cifar10:resnet:pods_all" in summary
+    assert "cifar10:resnet:pods_sandwich" in summary
+    assert summary["cifar10:resnet:pods_all"]["final_accuracy_mean"] == 0.81
+    assert summary["cifar10:resnet:pods_sandwich"]["final_accuracy_mean"] == 0.77

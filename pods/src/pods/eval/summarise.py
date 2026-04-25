@@ -80,6 +80,17 @@ def _summarise_final_results(runs: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _summary_variant_key(payload: dict[str, Any]) -> str:
+    baseline_kind = payload["baseline"]["kind"]
+    if baseline_kind == "pods":
+        training_mode = payload.get("training", {}).get("mode")
+        if training_mode == "all":
+            return "pods_all"
+        if training_mode == "sandwich":
+            return "pods_sandwich"
+    return baseline_kind
+
+
 def summarise_results(raw_root: Path) -> dict[str, Any]:
     grouped: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
     for result_path in raw_root.glob("*/results.json"):
@@ -89,7 +100,7 @@ def summarise_results(raw_root: Path) -> dict[str, Any]:
         key = (
             payload["task"]["dataset"],
             payload["model"]["family"],
-            payload["baseline"]["kind"],
+            _summary_variant_key(payload),
         )
         grouped[key].append(payload)
 
