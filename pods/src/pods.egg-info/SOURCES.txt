@@ -20,6 +20,7 @@ pods/src/pods/data/splits.py
 pods/src/pods/data/transforms.py
 pods/src/pods/eval/__init__.py
 pods/src/pods/eval/benchmark.py
+pods/src/pods/eval/plot_frontiers.py
 pods/src/pods/eval/quality.py
 pods/src/pods/eval/select.py
 pods/src/pods/eval/summarise.py

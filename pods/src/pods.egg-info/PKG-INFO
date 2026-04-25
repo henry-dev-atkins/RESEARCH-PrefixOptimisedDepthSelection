@@ -4,6 +4,7 @@ Version: 0.1.0
 Summary: Prefix Optimised Depth Selection research repository
 Requires-Python: >=3.11
 Description-Content-Type: text/markdown
+Requires-Dist: matplotlib>=3.9
 Requires-Dist: PyYAML>=6.0
 Requires-Dist: torch>=2.2
 Requires-Dist: torchvision>=0.17

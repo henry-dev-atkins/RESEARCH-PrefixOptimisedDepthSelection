@@ -88,6 +88,10 @@ def _summary_variant_key(payload: dict[str, Any]) -> str:
             return "pods_all"
         if training_mode == "sandwich":
             return "pods_sandwich"
+    if baseline_kind == "shallow_independent":
+        target_depth = payload.get("baseline", {}).get("target_depth")
+        if target_depth is not None:
+            return f"shallow_independent_d{int(target_depth)}"
     return baseline_kind
 
 
