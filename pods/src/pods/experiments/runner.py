@@ -1,0 +1,310 @@
+from __future__ import annotations
+
+import random
+from dataclasses import asdict
+from pathlib import Path
+from typing import Any
+
+import torch
+import torch.nn.functional as F
+from torch import optim
+from torch.utils.data import DataLoader
+
+from pods.config.schema import PodsConfig
+from pods.data.datasets import build_image_dataset
+from pods.data.splits import DatasetSplit, make_split_indices
+from pods.eval.benchmark import benchmark_prefix
+from pods.eval.quality import evaluate_all_prefixes, evaluate_classifier
+from pods.eval.select import PrefixCostResult, SelectionSpec, select_prefix_depth
+from pods.eval.summarise import summarise_by_dataset, summarise_results
+from pods.experiments.reporting import build_runtime_metadata, save_raw_run, write_processed_summary
+from pods.models.interfaces import PrefixCapableModel
+from pods.models.registry import build_model
+from pods.training.loops import train_multidepth_model
+from pods.utils.seeds import seed_everything
+
+
+def build_optimizer(config: PodsConfig, model: torch.nn.Module):
+    if config.training.optimiser == "adamw":
+        return optim.AdamW(model.parameters(), lr=config.training.learning_rate, weight_decay=config.training.weight_decay)
+    if config.training.optimiser == "sgd":
+        return optim.SGD(
+            model.parameters(),
+            lr=config.training.learning_rate,
+            weight_decay=config.training.weight_decay,
+            momentum=config.training.momentum,
+        )
+    raise ValueError(f"Unsupported optimiser: {config.training.optimiser}")
+
+
+def require_supported_runtime(config: PodsConfig, device: torch.device) -> None:
+    if device.type != "cuda":
+        raise ValueError("PODS ML experiments require CUDA. CPU execution is unsupported for training and benchmarking.")
+    if device.type != "cuda" and config.training.mixed_precision != "none":
+        raise ValueError(f"training.mixed_precision={config.training.mixed_precision!r} requires CUDA")
+    if device.type != "cuda" and config.selection.cost_metric == "peak_memory_mb":
+        raise ValueError("selection.cost_metric='peak_memory_mb' requires CUDA for meaningful measurement")
+
+
+def make_data_loaders(config: PodsConfig):
+    dataset_train_full = build_image_dataset(config.task.dataset, train=True)
+    dataset_selection_full = build_image_dataset(config.task.dataset, train=True, use_eval_transform=True)
+    dataset_test = build_image_dataset(config.task.dataset, train=False)
+    indices = make_split_indices(len(dataset_train_full), selection_fraction=config.task.selection_fraction, seed=config.experiment.seed)
+    split = DatasetSplit(
+        train=torch.utils.data.Subset(dataset_train_full, indices.train_indices),
+        selection_val=torch.utils.data.Subset(dataset_selection_full, indices.selection_indices),
+    )
+
+    train_loader = DataLoader(
+        split.train,
+        batch_size=config.training.batch_size,
+        shuffle=True,
+        num_workers=config.training.num_workers,
+        pin_memory=config.training.pin_memory,
+        persistent_workers=config.training.persistent_workers,
+        drop_last=config.training.drop_last,
+    )
+    val_loader = DataLoader(
+        split.selection_val,
+        batch_size=config.training.batch_size,
+        shuffle=False,
+        num_workers=config.training.num_workers,
+        pin_memory=config.training.pin_memory,
+        persistent_workers=config.training.persistent_workers,
+    )
+    test_loader = DataLoader(
+        dataset_test,
+        batch_size=config.training.batch_size,
+        shuffle=False,
+        num_workers=config.training.num_workers,
+        pin_memory=config.training.pin_memory,
+        persistent_workers=config.training.persistent_workers,
+    )
+    return split, train_loader, val_loader, test_loader
+
+
+def build_benchmark_batches(dataset, batch_sizes: tuple[int, ...]) -> dict[int, torch.Tensor]:
+    max_batch_size = max(batch_sizes)
+    loader = DataLoader(dataset, batch_size=max_batch_size, shuffle=False)
+    try:
+        inputs, _ = next(iter(loader))
+    except StopIteration as exc:
+        raise ValueError("Selection-validation dataset is empty; cannot build benchmark batches") from exc
+    if inputs.shape[0] < max_batch_size:
+        raise ValueError(
+            f"Selection-validation loader produced batch size {inputs.shape[0]}, smaller than requested benchmark batch size {max_batch_size}"
+        )
+    return {batch_size: inputs[:batch_size].clone() for batch_size in batch_sizes}
+
+
+def benchmark_prefixes(
+    model: PrefixCapableModel,
+    benchmark_batches: dict[int, torch.Tensor],
+    candidate_depths: tuple[int, ...],
+    warmup_steps: int,
+    timed_steps: int,
+    device: torch.device,
+) -> dict[int, dict[int, PrefixCostResult]]:
+    return {
+        depth: {
+            batch_size: benchmark_prefix(
+                model=model.extract_prefix(depth),
+                sample_batch=sample_batch,
+                warmup_steps=warmup_steps,
+                timed_steps=timed_steps,
+                device=device,
+                depth=depth,
+            )
+            for batch_size, sample_batch in benchmark_batches.items()
+        }
+        for depth in candidate_depths
+    }
+
+
+def make_selection_cost_results(
+    cost_results_by_batch: dict[int, dict[int, PrefixCostResult]],
+    selection_batch_size: int,
+) -> dict[int, PrefixCostResult]:
+    return {depth: batch_results[selection_batch_size] for depth, batch_results in cost_results_by_batch.items()}
+
+
+def compute_selection_target(selection_results, spec: SelectionSpec) -> float:
+    full_depth = max(selection_results)
+    full_accuracy = selection_results[full_depth].accuracy
+    if spec.relative_to_full_accuracy_drop is not None:
+        return full_accuracy - spec.relative_to_full_accuracy_drop
+    assert spec.absolute_accuracy_target is not None
+    return spec.absolute_accuracy_target
+
+
+def fit_posthoc_head(
+    model: PrefixCapableModel,
+    depth: int,
+    train_loader: DataLoader,
+    device: torch.device,
+    epochs: int,
+    learning_rate: float,
+) -> None:
+    for parameter in model.parameters():
+        parameter.requires_grad = False
+    head = model.heads[str(depth)]
+    for parameter in head.parameters():
+        parameter.requires_grad = True
+
+    optimiser = optim.AdamW(head.parameters(), lr=learning_rate)
+    model = model.to(device)
+    head.train()
+    for _ in range(epochs):
+        for inputs, labels in train_loader:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            with torch.no_grad():
+                features = model.forward_features(inputs, depth)
+            logits = head(features)
+            loss = F.cross_entropy(logits, labels)
+            optimiser.zero_grad(set_to_none=True)
+            loss.backward()
+            optimiser.step()
+
+    for parameter in model.parameters():
+        parameter.requires_grad = True
+
+
+def run_workflow(
+    config: PodsConfig,
+    model: PrefixCapableModel,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    test_loader: DataLoader,
+    selection_val_dataset,
+    device: torch.device,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    benchmark_batches = build_benchmark_batches(selection_val_dataset, config.benchmark.batch_sizes)
+    optimizer = build_optimizer(config, model)
+    rng = random.Random(config.experiment.seed)
+    model, history = train_multidepth_model(
+        model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        optimizer=optimizer,
+        epochs=config.training.epochs,
+        mode=config.training.mode,
+        num_middle_depths=config.training.num_middle_depths,
+        weight_power=config.training.weight_power,
+        device=device,
+        mixed_precision=config.training.mixed_precision,
+        label_smoothing=config.training.label_smoothing,
+        scheduler_name=config.training.scheduler,
+        scheduler_t_max=config.training.scheduler_t_max,
+        scheduler_milestones=config.training.scheduler_milestones,
+        scheduler_gamma=config.training.scheduler_gamma,
+        grad_clip=config.training.grad_clip,
+        rng=rng,
+    )
+
+    selection_spec = SelectionSpec(
+        quality_metric="accuracy",
+        cost_metric=config.selection.cost_metric,
+        relative_to_full_accuracy_drop=config.selection.relative_accuracy_drop,
+        absolute_accuracy_target=config.selection.absolute_accuracy_target,
+    )
+
+    if config.baseline.kind == "naive_truncation":
+        for depth in model.candidate_depths[:-1]:
+            fit_posthoc_head(
+                model=model,
+                depth=depth,
+                train_loader=train_loader,
+                device=device,
+                epochs=config.baseline.head_fit_epochs,
+                learning_rate=config.baseline.head_fit_learning_rate,
+            )
+
+    candidate_depths = model.candidate_depths if config.baseline.kind in {"pods", "naive_truncation"} else (max(model.candidate_depths),)
+    selection_results = evaluate_all_prefixes(model, val_loader, candidate_depths, device)
+    cost_results_by_batch = benchmark_prefixes(
+        model=model,
+        benchmark_batches=benchmark_batches,
+        candidate_depths=candidate_depths,
+        warmup_steps=config.benchmark.warmup_steps,
+        timed_steps=config.benchmark.timed_steps,
+        device=device,
+    )
+    selection_cost_results = make_selection_cost_results(cost_results_by_batch, config.benchmark.selection_batch_size)
+
+    if config.baseline.kind in {"pods", "naive_truncation"}:
+        selected_depth = select_prefix_depth(selection_results, selection_cost_results, selection_spec)
+        selection_target_value = compute_selection_target(selection_results, selection_spec)
+    else:
+        selected_depth = candidate_depths[0]
+        selection_target_value = selection_results[selected_depth].accuracy
+
+    selected_prefix = model.extract_prefix(selected_depth)
+    final_result = evaluate_classifier(selected_prefix, test_loader, device, depth=selected_depth)
+    final_cost_by_batch = {
+        batch_size: benchmark_prefix(
+            model=selected_prefix,
+            sample_batch=sample_batch,
+            warmup_steps=config.benchmark.warmup_steps,
+            timed_steps=config.benchmark.timed_steps,
+            device=device,
+            depth=selected_depth,
+        )
+        for batch_size, sample_batch in benchmark_batches.items()
+    }
+
+    results = {
+        "history": [
+            {"train_loss": epoch.train_loss, "val_metrics_by_depth": epoch.val_metrics_by_depth}
+            for epoch in history
+        ],
+        "selection_results": {depth: asdict(result) for depth, result in selection_results.items()},
+        "cost_results": {
+            depth: {batch_size: asdict(result) for batch_size, result in batch_results.items()}
+            for depth, batch_results in cost_results_by_batch.items()
+        },
+        "selection_spec": asdict(selection_spec),
+        "selection_target_value": selection_target_value,
+        "selected_depth": selected_depth,
+        "final_results": {selected_depth: asdict(final_result)},
+        "final_costs": {batch_size: asdict(result) for batch_size, result in final_cost_by_batch.items()},
+        "baseline": asdict(config.baseline),
+        "experiment": asdict(config.experiment),
+        "task": asdict(config.task),
+        "model": asdict(config.model),
+        "training": asdict(config.training),
+        "benchmark": asdict(config.benchmark),
+        "runtime": build_runtime_metadata(device),
+        "resolved_candidate_depths": list(candidate_depths),
+    }
+    return results, model.state_dict(), selected_prefix.state_dict()
+
+
+def run_experiment(config: PodsConfig) -> dict[str, Any]:
+    seed_everything(config.experiment.seed)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    require_supported_runtime(config, device)
+
+    split, train_loader, val_loader, test_loader = make_data_loaders(config)
+    target_depth = config.baseline.target_depth if config.baseline.kind == "shallow_independent" else None
+    model = build_model(config, target_depth=target_depth)
+
+    results, model_state, selected_prefix_state = run_workflow(
+        config=config,
+        model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        test_loader=test_loader,
+        selection_val_dataset=split.selection_val,
+        device=device,
+    )
+
+    output_dir = Path(config.experiment.output_dir)
+    save_raw_run(output_dir, config, results, model_state, selected_prefix_state)
+    processed = summarise_results(output_dir.parents[1] / "raw")
+    processed_root = output_dir.parents[1] / "processed"
+    write_processed_summary(processed_root / "run_index.json", processed)
+    write_processed_summary(processed_root / "cifar10_frontier_summary.json", summarise_by_dataset(processed, "cifar10"))
+    write_processed_summary(processed_root / "cifar100_frontier_summary.json", summarise_by_dataset(processed, "cifar100"))
+    return results

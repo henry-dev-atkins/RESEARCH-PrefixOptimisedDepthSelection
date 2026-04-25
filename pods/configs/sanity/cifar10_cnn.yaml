@@ -1,0 +1,56 @@
+experiment:
+  name: cifar10_cnn_sanity
+  seed: 7
+  output_dir: pods/results/raw/cifar10_cnn_sanity
+  tags: [sanity, cifar10, cnn]
+
+task:
+  type: image_classification
+  dataset: cifar10
+  num_classes: 10
+  selection_fraction: 0.1
+
+model:
+  family: cnn
+  input_shape: [3, 32, 32]
+  channels: [32, 64, 128]
+  candidate_depths: [1, 2, 3]
+  head_type: linear
+  norm_type: groupnorm
+  groupnorm_groups: 8
+
+training:
+  mode: sandwich
+  epochs: 5
+  batch_size: 128
+  optimiser: adamw
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  grad_clip: 1.0
+  mixed_precision: none
+  weight_power: 1.0
+  num_middle_depths: 1
+  scheduler: none
+  label_smoothing: 0.0
+  num_workers: 2
+  pin_memory: true
+  persistent_workers: true
+  drop_last: true
+
+selection:
+  quality_metric: accuracy
+  cost_metric: latency_ms_p50
+  relative_accuracy_drop: 0.02
+  absolute_accuracy_target: null
+
+benchmark:
+  batch_sizes: [1, 64]
+  selection_batch_size: 64
+  warmup_steps: 5
+  timed_steps: 20
+
+baseline:
+  kind: pods
+  target_depth: null
+  head_fit_epochs: 3
+  head_fit_learning_rate: 0.001

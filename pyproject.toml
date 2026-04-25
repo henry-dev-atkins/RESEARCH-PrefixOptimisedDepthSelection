@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pods"
+version = "0.1.0"
+description = "Prefix Optimised Depth Selection research repository"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "PyYAML>=6.0",
+  "torch>=2.2",
+  "torchvision>=0.17",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "pods/src"}
+
+[tool.setuptools.packages.find]
+where = ["pods/src"]
+
+[tool.pytest.ini_options]
+testpaths = ["pods/tests"]
