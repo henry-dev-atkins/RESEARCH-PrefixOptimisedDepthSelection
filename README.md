@@ -10,6 +10,7 @@ Requirements:
 
 - Python 3.11 or newer
 - `uv`
+- NVIDIA GPU with CUDA support for ML runs
 
 Bootstrap the environment with:
 
@@ -17,6 +18,14 @@ Bootstrap the environment with:
 uv lock
 uv sync --extra dev
 ```
+
+Verify that the environment is GPU-backed before running any experiment:
+
+```bash
+uv run python -c "import torch; print({'torch_version': torch.__version__, 'cuda_available': torch.cuda.is_available(), 'cuda_version': torch.version.cuda, 'device_count': torch.cuda.device_count(), 'device_name': torch.cuda.get_device_name(0) if torch.cuda.is_available() else None})"
+```
+
+PODS ML experiments are GPU-only. CPU-only PyTorch environments are unsupported for training and benchmarking.
 
 The canonical dependency files are:
 

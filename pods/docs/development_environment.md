@@ -22,6 +22,23 @@ uv sync --extra dev
 
 `uv` creates a project-local `.venv/`. That directory is ignored by git.
 
+PODS ML runs are GPU-only. The project pins `torch` and `torchvision` to the official PyTorch CUDA wheel index through `pyproject.toml`, so `uv sync` should produce a CUDA-backed environment on supported Windows NVIDIA machines.
+
+Before running any experiment, verify the runtime explicitly:
+
+```bash
+uv run python -c "import torch; print({'torch_version': torch.__version__, 'cuda_available': torch.cuda.is_available(), 'cuda_version': torch.version.cuda, 'device_count': torch.cuda.device_count(), 'device_name': torch.cuda.get_device_name(0) if torch.cuda.is_available() else None})"
+```
+
+Required fields for a valid ML environment:
+
+- `cuda_available` must be `True`
+- `cuda_version` must be non-null
+- `device_count` must be at least `1`
+- `device_name` must resolve the local NVIDIA GPU
+
+If that check fails, do not run experiments. Repair the environment first.
+
 ## Common Commands
 
 Run tests:
@@ -57,4 +74,4 @@ Commit `uv.lock` whenever dependency resolution changes.
 
 - `uv run ...` is the standard command surface for tests and experiments.
 - If `uv sync` fails because of local cache permissions, rerun it in a shell with normal user permissions. That is an environment issue, not a repo configuration issue.
-- Torch and torchvision currently resolve correctly through `uv` for this repository layout.
+- CPU-only PyTorch is unsupported for PODS ML runs.
