@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 
 from torch import nn
 
+from pods.data.batches import move_batch_to_device
 from pods.models.interfaces import PrefixCapableModel
 
 
@@ -33,9 +34,8 @@ def evaluate_all_prefixes(
     correct = {depth: 0 for depth in candidate_depths}
     total = 0
 
-    for inputs, labels in data_loader:
-        inputs = inputs.to(device)
-        labels = labels.to(device)
+    for batch in data_loader:
+        inputs, labels = move_batch_to_device(batch, device)
         logits_by_depth = model.forward_depths(inputs, candidate_depths)
         for depth, logits in logits_by_depth.items():
             loss_sums[depth] += float(F.cross_entropy(logits, labels, reduction="sum").item())
@@ -70,10 +70,9 @@ def evaluate_classifier(
     correct = 0
     total = 0
 
-    for inputs, labels in data_loader:
-        inputs = inputs.to(device)
-        labels = labels.to(device)
-        logits = model(inputs)
+    for batch in data_loader:
+        inputs, labels = move_batch_to_device(batch, device)
+        logits = model(**inputs) if isinstance(inputs, dict) else model(inputs)
         loss_sum += float(F.cross_entropy(logits, labels, reduction="sum").item())
         correct += int((logits.argmax(dim=1) == labels).sum().item())
         total += labels.numel()

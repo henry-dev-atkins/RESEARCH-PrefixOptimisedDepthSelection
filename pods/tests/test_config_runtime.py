@@ -97,3 +97,51 @@ def test_require_supported_runtime_rejects_cpu_even_without_special_cuda_feature
     config = load_config(_write_config(tmp_path, data))
     with pytest.raises(ValueError, match="CPU execution is unsupported"):
         require_supported_runtime(config, torch.device("cpu"))
+
+
+def test_config_accepts_bert_text_classification(tmp_path: Path) -> None:
+    data = _base_config()
+    data["task"] = {
+        "type": "text_classification",
+        "dataset": "sst2",
+        "num_classes": 2,
+        "selection_fraction": 0.1,
+        "text_fields": ["sentence"],
+        "max_length": 128,
+        "metric_name": "accuracy",
+    }
+    data["model"] = {
+        "family": "bert",
+        "pretrained_model_name": "bert-base-uncased",
+        "candidate_depths": [2, 4, 6, 8, 10, 12],
+        "head_type": "bert_cls",
+        "norm_type": "none",
+        "dropout": 0.1,
+    }
+    config = load_config(_write_config(tmp_path, data))
+    assert config.model.family == "bert"
+    assert config.task.text_fields == ("sentence",)
+
+
+def test_config_rejects_text_task_with_resnet(tmp_path: Path) -> None:
+    data = _base_config()
+    data["task"] = {
+        "type": "text_classification",
+        "dataset": "sst2",
+        "num_classes": 2,
+        "selection_fraction": 0.1,
+        "text_fields": ["sentence"],
+        "max_length": 128,
+        "metric_name": "accuracy",
+    }
+    data["model"] = {
+        "family": "resnet",
+        "variant": "resnet56",
+        "input_shape": [3, 32, 32],
+        "candidate_depths": [1, 2, 3],
+        "head_type": "linear",
+        "norm_type": "groupnorm",
+        "groupnorm_groups": 8,
+    }
+    with pytest.raises(ValueError, match="ResNet models require image_classification tasks"):
+        load_config(_write_config(tmp_path, data))

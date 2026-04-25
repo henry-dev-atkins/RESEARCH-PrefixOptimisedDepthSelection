@@ -28,6 +28,9 @@ class TaskConfig:
     dataset: str
     num_classes: int
     selection_fraction: float = 0.1
+    text_fields: tuple[str, ...] = ()
+    max_length: int = 128
+    metric_name: str = "accuracy"
 
 
 @dataclass(frozen=True)
@@ -41,6 +44,8 @@ class ModelConfig:
     channels: tuple[int, ...] = ()
     groupnorm_groups: int = 8
     variant: str | None = None
+    pretrained_model_name: str | None = None
+    dropout: float = 0.1
 
 
 @dataclass(frozen=True)
@@ -65,6 +70,9 @@ class TrainingConfig:
     pin_memory: bool = False
     persistent_workers: bool = False
     drop_last: bool = False
+    gradient_accumulation_steps: int = 1
+    warmup_ratio: float = 0.0
+    max_train_steps: int | None = None
 
 
 @dataclass(frozen=True)
@@ -139,6 +147,9 @@ def load_config(path: str | Path) -> PodsConfig:
             dataset=task_data["dataset"],
             num_classes=int(task_data["num_classes"]),
             selection_fraction=float(task_data.get("selection_fraction", 0.1)),
+            text_fields=tuple(task_data.get("text_fields", [])),
+            max_length=int(task_data.get("max_length", 128)),
+            metric_name=task_data.get("metric_name", "accuracy"),
         ),
         model=ModelConfig(
             family=model_data["family"],
@@ -150,6 +161,8 @@ def load_config(path: str | Path) -> PodsConfig:
             channels=tuple(model_data.get("channels", [])),
             groupnorm_groups=int(model_data.get("groupnorm_groups", 8)),
             variant=model_data.get("variant"),
+            pretrained_model_name=model_data.get("pretrained_model_name"),
+            dropout=float(model_data.get("dropout", 0.1)),
         ),
         training=TrainingConfig(
             mode=training_data["mode"],
@@ -172,6 +185,9 @@ def load_config(path: str | Path) -> PodsConfig:
             pin_memory=bool(training_data.get("pin_memory", False)),
             persistent_workers=bool(training_data.get("persistent_workers", False)),
             drop_last=bool(training_data.get("drop_last", False)),
+            gradient_accumulation_steps=int(training_data.get("gradient_accumulation_steps", 1)),
+            warmup_ratio=float(training_data.get("warmup_ratio", 0.0)),
+            max_train_steps=None if training_data.get("max_train_steps") is None else int(training_data["max_train_steps"]),
         ),
         selection=SelectionConfig(
             quality_metric=selection_data["quality_metric"],
@@ -201,9 +217,9 @@ def config_to_dict(config: PodsConfig) -> dict[str, Any]:
 
 
 def _validate_config(config: PodsConfig) -> None:
-    _ensure(config.task.type == "image_classification", "Session 1 supports only image_classification tasks")
+    _ensure(config.task.type in {"image_classification", "text_classification"}, "task.type is unsupported")
     _ensure(config.task.selection_fraction > 0.0 and config.task.selection_fraction < 1.0, "task.selection_fraction must be between 0 and 1")
-    _ensure(config.model.head_type == "linear", "Session 1 supports only model.head_type='linear'")
+    _ensure(config.model.head_type in {"linear", "bert_cls"}, "model.head_type is unsupported")
     _ensure(config.model.norm_type in {"none", "groupnorm", "batchnorm"}, "model.norm_type is unsupported")
     _ensure(config.training.mode in {"all", "sandwich", "full_only"}, "training.mode must be 'all', 'sandwich', or 'full_only'")
     _ensure(config.training.mixed_precision in {"none", "fp16", "bf16"}, "training.mixed_precision must be 'none', 'fp16', or 'bf16'")
@@ -213,6 +229,8 @@ def _validate_config(config: PodsConfig) -> None:
     _ensure(config.training.batch_size > 0, "training.batch_size must be positive")
     _ensure(config.training.num_middle_depths >= 0, "training.num_middle_depths must be non-negative")
     _ensure(config.training.num_workers >= 0, "training.num_workers must be non-negative")
+    _ensure(config.training.gradient_accumulation_steps > 0, "training.gradient_accumulation_steps must be positive")
+    _ensure(config.training.warmup_ratio >= 0.0 and config.training.warmup_ratio <= 1.0, "training.warmup_ratio must be between 0 and 1")
     _ensure(not config.training.persistent_workers or config.training.num_workers > 0, "training.persistent_workers requires training.num_workers > 0")
     if config.training.scheduler == "cosine":
         _ensure(config.training.scheduler_t_max is not None, "training.scheduler_t_max is required for cosine scheduler")
@@ -244,17 +262,34 @@ def _validate_config(config: PodsConfig) -> None:
     if config.baseline.kind in {"pods", "full", "naive_truncation"}:
         _ensure(config.baseline.target_depth is None, "baseline.target_depth is only valid for shallow_independent")
 
+    if config.task.type == "image_classification":
+        _ensure(config.task.metric_name == "accuracy", "image classification currently supports only metric_name='accuracy'")
+    elif config.task.type == "text_classification":
+        _ensure(config.task.dataset in {"sst2", "mrpc", "rte"}, "text_classification currently supports only sst2, mrpc, and rte")
+        _ensure(config.task.text_fields, "text classification tasks require task.text_fields")
+        _ensure(config.task.max_length > 0, "task.max_length must be positive")
+
     if config.model.family == "mlp":
+        _ensure(config.task.type == "image_classification", "MLP models require image_classification tasks")
         _ensure(config.model.input_shape is not None, "MLP models require model.input_shape")
         _ensure(config.model.hidden_dims, "MLP models require model.hidden_dims")
         _ensure(max(config.model.candidate_depths) == len(config.model.hidden_dims), "MLP max depth must match hidden_dims")
     elif config.model.family == "cnn":
+        _ensure(config.task.type == "image_classification", "CNN models require image_classification tasks")
         _ensure(config.model.input_shape is not None, "CNN models require model.input_shape")
         _ensure(config.model.channels, "CNN models require model.channels")
         _ensure(max(config.model.candidate_depths) == len(config.model.channels), "CNN max depth must match channels")
     elif config.model.family == "resnet":
-        _ensure(config.model.variant in {"resnet56", "resnet110"}, "Session 1 supports only resnet56 and resnet110")
+        _ensure(config.task.type == "image_classification", "ResNet models require image_classification tasks")
+        _ensure(config.model.variant in {"resnet56", "resnet110"}, "resnet variant is unsupported")
         _ensure(config.model.input_shape == (3, 32, 32), "CIFAR ResNet requires model.input_shape=[3, 32, 32]")
-        _ensure(config.model.candidate_depths == (1, 2, 3), "Session 1 ResNet candidate_depths must be stage-aligned as [1, 2, 3]")
+        _ensure(config.model.candidate_depths == (1, 2, 3), "ResNet candidate_depths must be stage-aligned as [1, 2, 3]")
+    elif config.model.family == "bert":
+        _ensure(config.task.type == "text_classification", "BERT models require text_classification tasks")
+        _ensure(config.model.pretrained_model_name is not None, "BERT models require model.pretrained_model_name")
+        _ensure(config.model.head_type == "bert_cls", "BERT models require model.head_type='bert_cls'")
+        _ensure(config.model.norm_type == "none", "BERT models require model.norm_type='none'")
+        _ensure(config.model.candidate_depths == (2, 4, 6, 8, 10, 12), "BERT candidate_depths must be [2, 4, 6, 8, 10, 12]")
+        _ensure(config.model.dropout >= 0.0, "model.dropout must be non-negative")
     else:
-        raise ValueError(f"Unsupported model.family for session 1: {config.model.family}")
+        raise ValueError(f"Unsupported model family: {config.model.family}")

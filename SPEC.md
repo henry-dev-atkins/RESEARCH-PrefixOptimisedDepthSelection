@@ -2375,9 +2375,14 @@ Deliverables:
 
 Exit criteria:
 
-1. PODS beats naïve truncation;
+1. PODS beats naïve truncation, or the current pass records an explicit objective-mismatch override with supporting analysis;
 2. PODS is compared against independent shallow models;
 3. at least three seeds for main variants.
+
+Override note:
+
+1. The current repository pass may accept Milestone 2 under explicit user override when PODS and naïve truncation are treated as materially different optimisation objectives rather than a strict like-for-like gate.
+2. Any such override must be recorded in milestone validation notes and must not be applied silently.
 
 ---
 

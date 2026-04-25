@@ -43,6 +43,7 @@ def _plot_dataset(dataset: str, summary: dict[str, Any], output_root: Path) -> N
         "naive_truncation": "#b04a3a",
         "shallow_independent_d1": "#0f766e",
         "shallow_independent_d2": "#155e75",
+        "shallow_independent_d4": "#0b7285",
         "pods_all": "#1d4ed8",
         "pods_sandwich": "#7c3aed",
     }
@@ -51,6 +52,7 @@ def _plot_dataset(dataset: str, summary: dict[str, Any], output_root: Path) -> N
         "naive_truncation": "s",
         "shallow_independent_d1": "^",
         "shallow_independent_d2": "v",
+        "shallow_independent_d4": "X",
         "pods_all": "D",
         "pods_sandwich": "P",
     }
@@ -94,8 +96,8 @@ def main() -> None:
     args = parser.parse_args()
 
     processed_root = Path(args.processed_root)
-    for dataset in ("cifar10", "cifar100"):
-        summary_path = processed_root / f"{dataset}_frontier_summary.json"
+    for summary_path in sorted(processed_root.glob("*_frontier_summary.json")):
+        dataset = summary_path.name.removesuffix("_frontier_summary.json")
         summary = json.loads(summary_path.read_text(encoding="utf-8"))
         if summary:
             _plot_dataset(dataset, summary, processed_root)

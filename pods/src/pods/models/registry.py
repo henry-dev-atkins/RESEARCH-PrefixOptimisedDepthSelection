@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pods.config.schema import PodsConfig
+from pods.models.bert import PodsBert
 from pods.models.cnn import PodsCNN
 from pods.models.interfaces import PrefixCapableModel
 from pods.models.mlp import PodsMLP
@@ -38,5 +39,13 @@ def build_model(config: PodsConfig, target_depth: int | None = None) -> PrefixCa
             candidate_depths=candidate_depths,
             norm_type=config.model.norm_type,
             groupnorm_groups=config.model.groupnorm_groups,
+        )
+    if config.model.family == "bert":
+        assert config.model.pretrained_model_name is not None
+        return PodsBert(
+            pretrained_model_name=config.model.pretrained_model_name,
+            num_classes=config.task.num_classes,
+            candidate_depths=candidate_depths,
+            dropout=config.model.dropout,
         )
     raise ValueError(f"Unsupported model family: {config.model.family}")

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any
 
-import torch
 from torch import nn
 
 
@@ -10,15 +10,15 @@ class PrefixCapableModel(nn.Module, ABC):
     candidate_depths: tuple[int, ...]
 
     @abstractmethod
-    def forward_features(self, x: torch.Tensor, depth: int) -> torch.Tensor:
+    def forward_features(self, x: Any, depth: int) -> Any:
         raise NotImplementedError
 
     @abstractmethod
-    def forward_depths(self, x: torch.Tensor, depths: tuple[int, ...]) -> dict[int, torch.Tensor]:
+    def forward_depths(self, x: Any, depths: tuple[int, ...]) -> dict[int, Any]:
         raise NotImplementedError
 
     @abstractmethod
-    def forward_prefix(self, x: torch.Tensor, depth: int) -> torch.Tensor:
+    def forward_prefix(self, x: Any, depth: int) -> Any:
         raise NotImplementedError
 
     @abstractmethod

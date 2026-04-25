@@ -9,9 +9,12 @@ description = "Prefix Optimised Depth Selection research repository"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "datasets>=3.0",
+  "evaluate>=0.4",
   "matplotlib>=3.9",
   "PyYAML>=6.0",
   "torch>=2.2",
+  "transformers>=4.46",
   "torchvision>=0.17",
 ]
 

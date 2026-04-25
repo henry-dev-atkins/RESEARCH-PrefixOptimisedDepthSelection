@@ -11,6 +11,7 @@ from torch import nn
 from torch.optim import lr_scheduler, Optimizer
 from torch.utils.data import DataLoader
 
+from pods.data.batches import move_batch_to_device
 from pods.eval.quality import PrefixQualityResult, evaluate_all_prefixes
 from pods.models.interfaces import PrefixCapableModel
 from pods.training.depth_sampling import sample_training_depths
@@ -21,11 +22,6 @@ from pods.training.losses import aggregate_multidepth_loss, classification_loss
 class EpochSummary:
     train_loss: float
     val_metrics_by_depth: dict[int, dict[str, float]]
-
-
-def _move_batch(batch: tuple[torch.Tensor, torch.Tensor], device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
-    inputs, labels = batch
-    return inputs.to(device), labels.to(device)
 
 
 def _build_scheduler(optimizer: Optimizer, scheduler_name: str, epochs: int, scheduler_t_max: int | None, scheduler_milestones: tuple[int, ...], scheduler_gamma: float | None):
@@ -55,6 +51,7 @@ def train_multidepth_model(
     scheduler_milestones: tuple[int, ...] = (),
     scheduler_gamma: float | None = None,
     grad_clip: float | None = None,
+    gradient_accumulation_steps: int = 1,
     rng: random.Random | None = None,
     evaluation_fn: Callable[[PrefixCapableModel, DataLoader, tuple[int, ...], torch.device], dict[int, PrefixQualityResult]] = evaluate_all_prefixes,
 ) -> tuple[PrefixCapableModel, list[EpochSummary]]:
@@ -73,9 +70,10 @@ def train_multidepth_model(
         model.train()
         running_loss = 0.0
         seen_batches = 0
+        optimizer.zero_grad(set_to_none=True)
 
-        for batch in train_loader:
-            inputs, labels = _move_batch(batch, device)
+        for batch_index, batch in enumerate(train_loader, start=1):
+            inputs, labels = move_batch_to_device(batch, device)
             depths = sample_training_depths(model.candidate_depths, mode, num_middle_depths, rng)
             if device.type == "cuda" and mixed_precision in {"fp16", "bf16"}:
                 autocast_context = torch.autocast(device_type="cuda", dtype=torch.float16 if mixed_precision == "fp16" else torch.bfloat16)
@@ -89,20 +87,25 @@ def train_multidepth_model(
                     for depth, logits in logits_by_depth.items()
                 }
                 total_loss = aggregate_multidepth_loss(losses_by_depth, model.max_depth(), weight_power, normalise=True)
+                step_loss = total_loss / gradient_accumulation_steps
 
-            optimizer.zero_grad(set_to_none=True)
             if use_fp16_scaler:
-                scaler.scale(total_loss).backward()
-                if grad_clip is not None:
-                    scaler.unscale_(optimizer)
-                    nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
-                scaler.step(optimizer)
-                scaler.update()
+                scaler.scale(step_loss).backward()
             else:
-                total_loss.backward()
+                step_loss.backward()
+
+            should_step = (batch_index % gradient_accumulation_steps == 0) or (batch_index == len(train_loader))
+            if should_step:
                 if grad_clip is not None:
+                    if use_fp16_scaler:
+                        scaler.unscale_(optimizer)
                     nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
-                optimizer.step()
+                if use_fp16_scaler:
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
 
             running_loss += float(total_loss.detach().item())
             seen_batches += 1

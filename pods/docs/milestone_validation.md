@@ -77,6 +77,8 @@ Exit criteria:
      - `pods_sandwich` final accuracy mean `0.1423`
    Interpretation:
    - The current evidence does not support the blanket Milestone 2 claim that PODS beats naive truncation.
+   Override status:
+   - Accepted by explicit user override and reflected in `SPEC.md`.
 2. PODS is compared against independent shallow models: PASS
    Evidence:
    - processed summaries now separate:
@@ -103,10 +105,11 @@ Exit criteria:
    - `pods/results/processed/cifar10_frontier_summary.json`
    - `pods/results/processed/cifar100_frontier_summary.json`
 
-Milestone 2 result: FAIL
+Milestone 2 result: PASS BY EXPLICIT OVERRIDE
 
 ### Residual Caveats
 
-1. Milestone 2 is not complete under the spec because the current CIFAR-100 evidence does not show PODS beating naive truncation.
-2. The benchmark component is reproducible enough for milestone validation, but wall-clock latency itself still varies slightly across reruns, so exact benchmark-metric identity should not be expected.
-3. Processed summaries and plots are generated from valid CUDA-backed runs only and should be treated as the current source of truth for this milestone pass.
+1. Milestone 2 was accepted by explicit user override after the spec was updated to allow an objective-mismatch override with supporting analysis.
+2. The current CIFAR-100 evidence still does not show PODS beating naive truncation in raw measured accuracy terms and should continue to be analysed rather than ignored.
+3. The benchmark component is reproducible enough for milestone validation, but wall-clock latency itself still varies slightly across reruns, so exact benchmark-metric identity should not be expected.
+4. Processed summaries and plots are generated from valid CUDA-backed runs only and should be treated as the current source of truth for this milestone pass.

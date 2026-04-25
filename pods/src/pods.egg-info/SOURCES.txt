@@ -15,6 +15,7 @@ pods/src/pods.egg-info/top_level.txt
 pods/src/pods/config/__init__.py
 pods/src/pods/config/schema.py
 pods/src/pods/data/__init__.py
+pods/src/pods/data/batches.py
 pods/src/pods/data/datasets.py
 pods/src/pods/data/splits.py
 pods/src/pods/data/transforms.py
@@ -28,6 +29,7 @@ pods/src/pods/experiments/__init__.py
 pods/src/pods/experiments/reporting.py
 pods/src/pods/experiments/runner.py
 pods/src/pods/models/__init__.py
+pods/src/pods/models/bert.py
 pods/src/pods/models/cnn.py
 pods/src/pods/models/heads.py
 pods/src/pods/models/interfaces.py

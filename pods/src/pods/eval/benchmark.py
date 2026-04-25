@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import statistics
 import time
+from typing import Any
 
 import torch
 from torch import nn
@@ -19,7 +20,7 @@ def serialised_model_size_bytes(model: nn.Module) -> int:
 @torch.no_grad()
 def benchmark_prefix(
     model: nn.Module,
-    sample_batch: torch.Tensor,
+    sample_batch: Any,
     warmup_steps: int,
     timed_steps: int,
     device: torch.device,
@@ -29,27 +30,32 @@ def benchmark_prefix(
         raise ValueError("warmup_steps must be non-negative and timed_steps must be positive")
 
     model = model.to(device).eval()
-    sample_batch = sample_batch.to(device)
+    if isinstance(sample_batch, dict):
+        sample_batch = {key: value.to(device) for key, value in sample_batch.items()}
+        batch_size = next(iter(sample_batch.values())).shape[0]
+    else:
+        sample_batch = sample_batch.to(device)
+        batch_size = sample_batch.shape[0]
 
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats(device)
 
     for _ in range(warmup_steps):
-        _ = model(sample_batch)
+        _ = model(**sample_batch) if isinstance(sample_batch, dict) else model(sample_batch)
     if device.type == "cuda":
         torch.cuda.synchronize(device)
 
     timings = []
     for _ in range(timed_steps):
         t0 = time.perf_counter()
-        _ = model(sample_batch)
+        _ = model(**sample_batch) if isinstance(sample_batch, dict) else model(sample_batch)
         if device.type == "cuda":
             torch.cuda.synchronize(device)
         timings.append((time.perf_counter() - t0) * 1000.0)
 
     latency_p95 = timings[0] if len(timings) < 2 else statistics.quantiles(timings, n=100)[94]
     peak_memory_bytes = torch.cuda.max_memory_allocated(device) if device.type == "cuda" else 0
-    throughput = sample_batch.shape[0] / (sum(timings) / len(timings) / 1000.0)
+    throughput = batch_size / (sum(timings) / len(timings) / 1000.0)
 
     return PrefixCostResult(
         depth=depth,

@@ -11,7 +11,8 @@ from torch import optim
 from torch.utils.data import DataLoader
 
 from pods.config.schema import PodsConfig
-from pods.data.datasets import build_image_dataset
+from pods.data.batches import move_batch_to_device
+from pods.data.datasets import build_image_dataset, build_text_datasets
 from pods.data.splits import DatasetSplit, make_split_indices
 from pods.eval.benchmark import benchmark_prefix
 from pods.eval.quality import evaluate_all_prefixes, evaluate_classifier
@@ -47,14 +48,32 @@ def require_supported_runtime(config: PodsConfig, device: torch.device) -> None:
 
 
 def make_data_loaders(config: PodsConfig):
-    dataset_train_full = build_image_dataset(config.task.dataset, train=True)
-    dataset_selection_full = build_image_dataset(config.task.dataset, train=True, use_eval_transform=True)
-    dataset_test = build_image_dataset(config.task.dataset, train=False)
-    indices = make_split_indices(len(dataset_train_full), selection_fraction=config.task.selection_fraction, seed=config.experiment.seed)
-    split = DatasetSplit(
-        train=torch.utils.data.Subset(dataset_train_full, indices.train_indices),
-        selection_val=torch.utils.data.Subset(dataset_selection_full, indices.selection_indices),
-    )
+    collate_fn = None
+    if config.task.type == "image_classification":
+        dataset_train_full = build_image_dataset(config.task.dataset, train=True)
+        dataset_selection_full = build_image_dataset(config.task.dataset, train=True, use_eval_transform=True)
+        dataset_test = build_image_dataset(config.task.dataset, train=False)
+        indices = make_split_indices(len(dataset_train_full), selection_fraction=config.task.selection_fraction, seed=config.experiment.seed)
+        split = DatasetSplit(
+            train=torch.utils.data.Subset(dataset_train_full, indices.train_indices),
+            selection_val=torch.utils.data.Subset(dataset_selection_full, indices.selection_indices),
+        )
+    elif config.task.type == "text_classification":
+        try:
+            from transformers import AutoTokenizer, DataCollatorWithPadding
+        except ImportError as exc:
+            raise ImportError("Text tasks require the 'transformers' package to be installed") from exc
+        datasets = build_text_datasets(config)
+        indices = make_split_indices(len(datasets["train"]), selection_fraction=config.task.selection_fraction, seed=config.experiment.seed)
+        split = DatasetSplit(
+            train=torch.utils.data.Subset(datasets["train"], indices.train_indices),
+            selection_val=torch.utils.data.Subset(datasets["train"], indices.selection_indices),
+        )
+        dataset_test = datasets["validation"]
+        tokenizer = AutoTokenizer.from_pretrained(config.model.pretrained_model_name)
+        collate_fn = DataCollatorWithPadding(tokenizer=tokenizer)
+    else:
+        raise ValueError(f"Unsupported task.type: {config.task.type}")
 
     train_loader = DataLoader(
         split.train,
@@ -64,6 +83,7 @@ def make_data_loaders(config: PodsConfig):
         pin_memory=config.training.pin_memory,
         persistent_workers=config.training.persistent_workers,
         drop_last=config.training.drop_last,
+        collate_fn=collate_fn,
     )
     val_loader = DataLoader(
         split.selection_val,
@@ -72,6 +92,7 @@ def make_data_loaders(config: PodsConfig):
         num_workers=config.training.num_workers,
         pin_memory=config.training.pin_memory,
         persistent_workers=config.training.persistent_workers,
+        collate_fn=collate_fn,
     )
     test_loader = DataLoader(
         dataset_test,
@@ -80,17 +101,29 @@ def make_data_loaders(config: PodsConfig):
         num_workers=config.training.num_workers,
         pin_memory=config.training.pin_memory,
         persistent_workers=config.training.persistent_workers,
+        collate_fn=collate_fn,
     )
     return split, train_loader, val_loader, test_loader
 
 
-def build_benchmark_batches(dataset, batch_sizes: tuple[int, ...]) -> dict[int, torch.Tensor]:
+def build_benchmark_batches(dataset, batch_sizes: tuple[int, ...], collate_fn=None) -> dict[int, Any]:
     max_batch_size = max(batch_sizes)
-    loader = DataLoader(dataset, batch_size=max_batch_size, shuffle=False)
+    loader = DataLoader(dataset, batch_size=max_batch_size, shuffle=False, collate_fn=collate_fn)
     try:
-        inputs, _ = next(iter(loader))
+        batch = next(iter(loader))
     except StopIteration as exc:
         raise ValueError("Selection-validation dataset is empty; cannot build benchmark batches") from exc
+    inputs, _ = move_batch_to_device(batch, torch.device("cpu"))
+    if isinstance(inputs, dict):
+        batch_size_seen = next(iter(inputs.values())).shape[0]
+        if batch_size_seen < max_batch_size:
+            raise ValueError(
+                f"Selection-validation loader produced batch size {batch_size_seen}, smaller than requested benchmark batch size {max_batch_size}"
+            )
+        return {
+            batch_size: {key: value[:batch_size].clone() for key, value in inputs.items()}
+            for batch_size in batch_sizes
+        }
     if inputs.shape[0] < max_batch_size:
         raise ValueError(
             f"Selection-validation loader produced batch size {inputs.shape[0]}, smaller than requested benchmark batch size {max_batch_size}"
@@ -156,9 +189,8 @@ def fit_posthoc_head(
     model = model.to(device)
     head.train()
     for _ in range(epochs):
-        for inputs, labels in train_loader:
-            inputs = inputs.to(device)
-            labels = labels.to(device)
+        for batch in train_loader:
+            inputs, labels = move_batch_to_device(batch, device)
             with torch.no_grad():
                 features = model.forward_features(inputs, depth)
             logits = head(features)
@@ -180,7 +212,7 @@ def run_workflow(
     selection_val_dataset,
     device: torch.device,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
-    benchmark_batches = build_benchmark_batches(selection_val_dataset, config.benchmark.batch_sizes)
+    benchmark_batches = build_benchmark_batches(selection_val_dataset, config.benchmark.batch_sizes, collate_fn=val_loader.collate_fn)
     optimizer = build_optimizer(config, model)
     rng = random.Random(config.experiment.seed)
     model, history = train_multidepth_model(
@@ -200,6 +232,7 @@ def run_workflow(
         scheduler_milestones=config.training.scheduler_milestones,
         scheduler_gamma=config.training.scheduler_gamma,
         grad_clip=config.training.grad_clip,
+        gradient_accumulation_steps=config.training.gradient_accumulation_steps,
         rng=rng,
     )
 
@@ -305,6 +338,7 @@ def run_experiment(config: PodsConfig) -> dict[str, Any]:
     processed = summarise_results(output_dir.parents[1] / "raw")
     processed_root = output_dir.parents[1] / "processed"
     write_processed_summary(processed_root / "run_index.json", processed)
-    write_processed_summary(processed_root / "cifar10_frontier_summary.json", summarise_by_dataset(processed, "cifar10"))
-    write_processed_summary(processed_root / "cifar100_frontier_summary.json", summarise_by_dataset(processed, "cifar100"))
+    dataset_names = sorted({key.split(":", 1)[0] for key in processed})
+    for dataset_name in dataset_names:
+        write_processed_summary(processed_root / f"{dataset_name}_frontier_summary.json", summarise_by_dataset(processed, dataset_name))
     return results
