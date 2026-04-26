@@ -1,0 +1,62 @@
+experiment:
+  name: mrpc_roberta_base_pods_sandwich
+  seed: 7
+  output_dir: pods/results/raw/mrpc_roberta_base_pods_sandwich
+  tags: [session2, glue, mrpc, roberta-base, pods, sandwich]
+
+task:
+  type: text_classification
+  dataset: mrpc
+  num_classes: 2
+  selection_fraction: 0.1
+  text_fields: [sentence1, sentence2]
+  max_length: 128
+  metric_name: accuracy
+
+model:
+  family: roberta
+  pretrained_model_name: roberta-base
+  candidate_depths: [2, 4, 6, 8, 10, 12]
+  head_type: roberta_cls
+  norm_type: none
+  dropout: 0.1
+
+training:
+  mode: sandwich
+  epochs: 5
+  batch_size: 16
+  optimiser: adamw
+  learning_rate: 0.00002
+  weight_decay: 0.01
+  grad_clip: 1.0
+  mixed_precision: bf16
+  weight_power: 1.0
+  num_middle_depths: 1
+  scheduler: cosine
+  scheduler_t_max: 5
+  label_smoothing: 0.0
+  momentum: 0.9
+  num_workers: 0
+  pin_memory: true
+  persistent_workers: false
+  drop_last: false
+  gradient_accumulation_steps: 2
+  warmup_ratio: 0.1
+
+selection:
+  quality_metric: accuracy
+  cost_metric: latency_ms_p50
+  relative_accuracy_drop: 0.01
+  absolute_accuracy_target: null
+
+benchmark:
+  batch_sizes: [1, 8]
+  selection_batch_size: 1
+  warmup_steps: 10
+  timed_steps: 30
+
+baseline:
+  kind: pods
+  target_depth: null
+  head_fit_epochs: 3
+  head_fit_learning_rate: 0.001

@@ -5,6 +5,7 @@ from pods.models.bert import PodsBert
 from pods.models.cnn import PodsCNN
 from pods.models.interfaces import PrefixCapableModel
 from pods.models.mlp import PodsMLP
+from pods.models.roberta import PodsRoberta
 from pods.models.resnet import PodsResNet
 
 
@@ -43,6 +44,14 @@ def build_model(config: PodsConfig, target_depth: int | None = None) -> PrefixCa
     if config.model.family == "bert":
         assert config.model.pretrained_model_name is not None
         return PodsBert(
+            pretrained_model_name=config.model.pretrained_model_name,
+            num_classes=config.task.num_classes,
+            candidate_depths=candidate_depths,
+            dropout=config.model.dropout,
+        )
+    if config.model.family == "roberta":
+        assert config.model.pretrained_model_name is not None
+        return PodsRoberta(
             pretrained_model_name=config.model.pretrained_model_name,
             num_classes=config.task.num_classes,
             candidate_depths=candidate_depths,

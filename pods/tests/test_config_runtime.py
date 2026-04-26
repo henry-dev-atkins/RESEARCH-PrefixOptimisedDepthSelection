@@ -145,3 +145,30 @@ def test_config_rejects_text_task_with_resnet(tmp_path: Path) -> None:
     }
     with pytest.raises(ValueError, match="ResNet models require image_classification tasks"):
         load_config(_write_config(tmp_path, data))
+
+
+def test_config_accepts_roberta_text_classification(tmp_path: Path) -> None:
+    data = _base_config()
+    data["task"] = {
+        "type": "text_classification",
+        "dataset": "mrpc",
+        "num_classes": 2,
+        "selection_fraction": 0.1,
+        "text_fields": ["sentence1", "sentence2"],
+        "max_length": 128,
+        "metric_name": "accuracy",
+    }
+    data["model"] = {
+        "family": "roberta",
+        "pretrained_model_name": "roberta-base",
+        "candidate_depths": [2, 4, 6, 8, 10, 12],
+        "head_type": "roberta_cls",
+        "norm_type": "none",
+        "dropout": 0.1,
+    }
+    data["baseline"]["kind"] = "layerdrop"
+    data["training"]["mode"] = "layerdrop"
+    data["training"]["layerdrop_prob"] = 0.2
+    config = load_config(_write_config(tmp_path, data))
+    assert config.model.family == "roberta"
+    assert config.training.mode == "layerdrop"

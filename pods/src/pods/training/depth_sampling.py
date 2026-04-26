@@ -6,7 +6,7 @@ from typing import Literal
 
 def sample_training_depths(
     candidate_depths: tuple[int, ...],
-    mode: Literal["all", "sandwich", "full_only"],
+    mode: Literal["all", "sandwich", "full_only", "layerdrop"],
     num_middle: int,
     rng: random.Random,
 ) -> tuple[int, ...]:
@@ -19,6 +19,8 @@ def sample_training_depths(
         return candidate_depths
     if mode == "full_only":
         return (candidate_depths[-1],)
+    if mode == "layerdrop":
+        return (rng.choice(candidate_depths),)
     if mode != "sandwich":
         raise ValueError(f"Unsupported training mode: {mode}")
     if len(candidate_depths) < 2:

@@ -88,6 +88,8 @@ def _summary_variant_key(payload: dict[str, Any]) -> str:
             return "pods_all"
         if training_mode == "sandwich":
             return "pods_sandwich"
+    if baseline_kind == "layerdrop":
+        return "layerdrop"
     if baseline_kind == "shallow_independent":
         target_depth = payload.get("baseline", {}).get("target_depth")
         if target_depth is not None:

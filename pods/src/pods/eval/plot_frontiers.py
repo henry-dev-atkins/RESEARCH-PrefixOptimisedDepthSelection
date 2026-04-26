@@ -44,6 +44,7 @@ def _plot_dataset(dataset: str, summary: dict[str, Any], output_root: Path) -> N
         "shallow_independent_d1": "#0f766e",
         "shallow_independent_d2": "#155e75",
         "shallow_independent_d4": "#0b7285",
+        "layerdrop": "#c2410c",
         "pods_all": "#1d4ed8",
         "pods_sandwich": "#7c3aed",
     }
@@ -53,6 +54,7 @@ def _plot_dataset(dataset: str, summary: dict[str, Any], output_root: Path) -> N
         "shallow_independent_d1": "^",
         "shallow_independent_d2": "v",
         "shallow_independent_d4": "X",
+        "layerdrop": "*",
         "pods_all": "D",
         "pods_sandwich": "P",
     }

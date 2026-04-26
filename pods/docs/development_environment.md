@@ -75,3 +75,5 @@ Commit `uv.lock` whenever dependency resolution changes.
 - `uv run ...` is the standard command surface for tests and experiments.
 - If `uv sync` fails because of local cache permissions, rerun it in a shell with normal user permissions. That is an environment issue, not a repo configuration issue.
 - CPU-only PyTorch is unsupported for PODS ML runs.
+- Session 2 transformer runs use Hugging Face models and datasets. Without `HF_TOKEN`, unauthenticated download warnings are expected but not currently blocking.
+- On Windows, Hugging Face may warn about cache symlink support. That warning is informational unless caching actually fails.

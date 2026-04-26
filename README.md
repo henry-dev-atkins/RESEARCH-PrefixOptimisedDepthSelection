@@ -50,4 +50,9 @@ uv run python -m pods.run --config pods/configs/sanity/mnist_mlp.yaml
 
 For environment workflow notes and dependency update policy, see [pods/docs/development_environment.md](pods/docs/development_environment.md).
 
+Current work tracking docs:
+
+- [Session 2 handover](pods/docs/session2_handover_2026-04-25.md)
+- [Session 2 TODO](pods/docs/session2_todo.md)
+
 
