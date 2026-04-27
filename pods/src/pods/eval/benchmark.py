@@ -61,7 +61,12 @@ def benchmark_prefix(
         depth=depth,
         latency_ms_p50=statistics.median(timings),
         latency_ms_p95=latency_p95,
+        latency_ms_p50_ci_low=None,
+        latency_ms_p50_ci_high=None,
+        latency_ms_p95_ci_low=None,
+        latency_ms_p95_ci_high=None,
         throughput_items_per_s=throughput,
         peak_memory_mb=peak_memory_bytes / (1024 * 1024),
         model_bytes=serialised_model_size_bytes(model),
+        benchmark_repeats=1,
     )

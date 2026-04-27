@@ -53,6 +53,7 @@ def train_multidepth_model(
     grad_clip: float | None = None,
     gradient_accumulation_steps: int = 1,
     rng: random.Random | None = None,
+    progressive_middle_depths: tuple[int, ...] = (),
     evaluation_fn: Callable[[PrefixCapableModel, DataLoader, tuple[int, ...], torch.device], dict[int, PrefixQualityResult]] = evaluate_all_prefixes,
 ) -> tuple[PrefixCapableModel, list[EpochSummary]]:
     if rng is None:
@@ -66,15 +67,22 @@ def train_multidepth_model(
     scaler = torch.amp.GradScaler(device="cuda", enabled=use_fp16_scaler)
     scheduler = _build_scheduler(optimizer, scheduler_name, epochs, scheduler_t_max, scheduler_milestones, scheduler_gamma)
 
-    for _ in range(epochs):
+    for epoch_index in range(epochs):
         model.train()
         running_loss = 0.0
         seen_batches = 0
         optimizer.zero_grad(set_to_none=True)
 
+        current_num_middle = num_middle_depths
+        if mode == "progressive_sandwich":
+            if not progressive_middle_depths:
+                raise ValueError("progressive_sandwich requires progressive_middle_depths")
+            stage_index = min((epoch_index * len(progressive_middle_depths)) // max(epochs, 1), len(progressive_middle_depths) - 1)
+            current_num_middle = progressive_middle_depths[stage_index]
+
         for batch_index, batch in enumerate(train_loader, start=1):
             inputs, labels = move_batch_to_device(batch, device)
-            depths = sample_training_depths(model.candidate_depths, mode, num_middle_depths, rng)
+            depths = sample_training_depths(model.candidate_depths, mode, current_num_middle, rng)
             if device.type == "cuda" and mixed_precision in {"fp16", "bf16"}:
                 autocast_context = torch.autocast(device_type="cuda", dtype=torch.float16 if mixed_precision == "fp16" else torch.bfloat16)
             else:
@@ -124,7 +132,11 @@ def train_multidepth_model(
             EpochSummary(
                 train_loss=running_loss / max(seen_batches, 1),
                 val_metrics_by_depth={
-                    depth: {"accuracy": result.accuracy, "loss": result.loss}
+                    depth: {
+                        "accuracy": result.accuracy,
+                        "loss": result.loss,
+                        result.metric_name: result.metric_value,
+                    }
                     for depth, result in val_results.items()
                 },
             )

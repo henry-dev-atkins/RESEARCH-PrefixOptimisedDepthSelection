@@ -27,3 +27,10 @@ def test_sandwich_mode_includes_anchors_and_sorted_unique_middle_depths() -> Non
 def test_sandwich_mode_rejects_impossible_middle_count() -> None:
     with pytest.raises(ValueError, match="num_middle exceeds"):
         sample_training_depths((1, 2, 3), "sandwich", 5, random.Random(0))
+
+
+def test_progressive_sandwich_mode_includes_anchors_and_middle_depths() -> None:
+    depths = sample_training_depths((2, 4, 6, 8), "progressive_sandwich", 1, random.Random(0))
+    assert depths[0] == 2
+    assert depths[-1] == 8
+    assert len(depths) == 3

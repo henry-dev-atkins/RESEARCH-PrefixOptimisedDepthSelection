@@ -10,6 +10,7 @@ class PodsBert(PodsTransformerEncoder):
         num_classes: int,
         candidate_depths: tuple[int, ...],
         dropout: float,
+        head_type: str,
     ) -> None:
         super().__init__(
             pretrained_model_name=pretrained_model_name,
@@ -17,4 +18,5 @@ class PodsBert(PodsTransformerEncoder):
             candidate_depths=candidate_depths,
             dropout=dropout,
             expected_model_type="bert",
+            head_type=head_type,
         )

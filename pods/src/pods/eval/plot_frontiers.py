@@ -16,12 +16,15 @@ def _extract_frontier_points(summary: dict[str, Any]) -> list[dict[str, Any]]:
     points: list[dict[str, Any]] = []
     for key, entry in sorted(summary.items()):
         label = key.split(":")[-1]
-        for depth_key, accuracy_summary in sorted(entry["final_results_by_depth"]["accuracy"].items(), key=lambda item: int(item[0])):
+        metric_name = str(entry.get("task_metric_name", "accuracy"))
+        metric_summary = entry["final_results_by_depth"][metric_name]
+        for depth_key, accuracy_summary in sorted(metric_summary.items(), key=lambda item: int(item[0])):
             depth = int(depth_key)
             points.append(
                 {
                     "label": label,
                     "depth": depth,
+                    "metric_name": metric_name,
                     "accuracy_mean": float(accuracy_summary["mean"]),
                     "accuracy_std": float(accuracy_summary["std"]),
                     "latency_ms_p50_mean": _mean_metric(entry, "final_costs_by_batch_size", "latency_ms_p50", 1, depth),
@@ -45,6 +48,7 @@ def _plot_dataset(dataset: str, summary: dict[str, Any], output_root: Path) -> N
         "shallow_independent_d2": "#155e75",
         "shallow_independent_d4": "#0b7285",
         "layerdrop": "#c2410c",
+        "progressive_shrinking": "#9333ea",
         "pods_all": "#1d4ed8",
         "pods_sandwich": "#7c3aed",
     }
@@ -55,6 +59,7 @@ def _plot_dataset(dataset: str, summary: dict[str, Any], output_root: Path) -> N
         "shallow_independent_d2": "v",
         "shallow_independent_d4": "X",
         "layerdrop": "*",
+        "progressive_shrinking": "h",
         "pods_all": "D",
         "pods_sandwich": "P",
     }
@@ -80,7 +85,8 @@ def _plot_dataset(dataset: str, summary: dict[str, Any], output_root: Path) -> N
 
     ax.set_title(f"{dataset.upper()} Measured Frontier")
     ax.set_xlabel("Measured p50 latency (ms), batch 1")
-    ax.set_ylabel("Accuracy")
+    metric_name = points[0]["metric_name"]
+    ax.set_ylabel(metric_name.replace("_", " ").title())
     ax.grid(True, alpha=0.3)
     ax.legend(frameon=False)
     fig.tight_layout()

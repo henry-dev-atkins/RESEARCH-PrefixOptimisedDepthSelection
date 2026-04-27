@@ -20,6 +20,40 @@ class TransformerPrefixClassificationHead(nn.Module):
         return self.out(self.dropout(self.norm(cls)))
 
 
+class TransformerPrefixLinearHead(nn.Module):
+    def __init__(self, hidden_size: int, num_classes: int) -> None:
+        super().__init__()
+        self.out = nn.Linear(hidden_size, num_classes)
+
+    def forward(self, hidden: torch.Tensor) -> torch.Tensor:
+        return self.out(hidden[:, 0])
+
+
+class TransformerPrefixMlpHead(nn.Module):
+    def __init__(self, hidden_size: int, num_classes: int, dropout: float) -> None:
+        super().__init__()
+        self.norm = nn.LayerNorm(hidden_size)
+        self.dropout = nn.Dropout(dropout)
+        self.proj = nn.Linear(hidden_size, hidden_size)
+        self.activation = nn.GELU()
+        self.out = nn.Linear(hidden_size, num_classes)
+
+    def forward(self, hidden: torch.Tensor) -> torch.Tensor:
+        cls = self.norm(hidden[:, 0])
+        cls = self.activation(self.proj(self.dropout(cls)))
+        return self.out(self.dropout(cls))
+
+
+def make_transformer_head(head_type: str, hidden_size: int, num_classes: int, dropout: float) -> nn.Module:
+    if head_type in {"bert_cls", "roberta_cls"}:
+        return TransformerPrefixClassificationHead(hidden_size, num_classes, dropout)
+    if head_type in {"bert_cls_linear", "roberta_cls_linear"}:
+        return TransformerPrefixLinearHead(hidden_size, num_classes)
+    if head_type in {"bert_cls_mlp", "roberta_cls_mlp"}:
+        return TransformerPrefixMlpHead(hidden_size, num_classes, dropout)
+    raise ValueError(f"Unsupported transformer head_type: {head_type}")
+
+
 class ExtractedPrefixTransformer(nn.Module):
     def __init__(self, backbone: nn.Module, head: nn.Module) -> None:
         super().__init__()
@@ -53,6 +87,7 @@ class PodsTransformerEncoder(PrefixCapableModel):
         candidate_depths: tuple[int, ...],
         dropout: float,
         expected_model_type: str,
+        head_type: str,
     ) -> None:
         super().__init__()
         try:
@@ -70,9 +105,10 @@ class PodsTransformerEncoder(PrefixCapableModel):
         self.hidden_size = config.hidden_size
         self.dropout = dropout
         self.expected_model_type = expected_model_type
+        self.head_type = head_type
         self.heads = nn.ModuleDict(
             {
-                str(depth): TransformerPrefixClassificationHead(self.hidden_size, num_classes, dropout)
+                str(depth): make_transformer_head(head_type, self.hidden_size, num_classes, dropout)
                 for depth in candidate_depths
             }
         )

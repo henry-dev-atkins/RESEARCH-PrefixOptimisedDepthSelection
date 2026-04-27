@@ -36,7 +36,7 @@ def build_text_datasets(config: PodsConfig, root: str | Path = "temp/data") -> d
     tokenizer = AutoTokenizer.from_pretrained(config.model.pretrained_model_name)
     text_fields = config.task.text_fields
 
-    if dataset_name not in {"sst2", "mrpc", "rte"}:
+    if dataset_name not in {"sst2", "mrpc", "rte", "qqp", "qnli", "cola"}:
         raise ValueError(f"Unsupported text dataset: {dataset_name}")
 
     raw = load_dataset("glue", dataset_name, cache_dir=str(root / "huggingface"))

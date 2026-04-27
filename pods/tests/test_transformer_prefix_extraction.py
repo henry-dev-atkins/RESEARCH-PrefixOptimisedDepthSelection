@@ -28,6 +28,7 @@ def test_bert_extract_prefix_matches_forward_prefix_logits() -> None:
         num_classes=2,
         candidate_depths=(2, 4, 6, 8, 10, 12),
         dropout=0.1,
+        head_type="bert_cls",
     )
     model.eval()
     batch = _sample_bert_batch()
@@ -45,6 +46,7 @@ def test_roberta_extract_prefix_matches_forward_prefix_logits() -> None:
         num_classes=2,
         candidate_depths=(2, 4, 6, 8, 10, 12),
         dropout=0.1,
+        head_type="roberta_cls",
     )
     model.eval()
     batch = _sample_roberta_batch()

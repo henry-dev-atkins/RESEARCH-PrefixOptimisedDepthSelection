@@ -138,10 +138,22 @@ def benchmark_prefixes(
     warmup_steps: int,
     timed_steps: int,
     device: torch.device,
+    repeat_runs: int,
+    confidence_level: float,
 ) -> dict[int, dict[int, PrefixCostResult]]:
-    return {
-        depth: {
-            batch_size: benchmark_prefix(
+    alpha = (1.0 - confidence_level) / 2.0
+
+    def _ci(values: list[float]) -> tuple[float | None, float | None]:
+        if len(values) <= 1:
+            return None, None
+        sorted_values = sorted(values)
+        low_index = max(0, min(len(sorted_values) - 1, int(alpha * len(sorted_values))))
+        high_index = max(0, min(len(sorted_values) - 1, int((1.0 - alpha) * len(sorted_values)) - 1))
+        return sorted_values[low_index], sorted_values[high_index]
+
+    def _aggregate_runs(depth: int, sample_batch) -> PrefixCostResult:
+        runs = [
+            benchmark_prefix(
                 model=model.extract_prefix(depth),
                 sample_batch=sample_batch,
                 warmup_steps=warmup_steps,
@@ -149,6 +161,29 @@ def benchmark_prefixes(
                 device=device,
                 depth=depth,
             )
+            for _ in range(repeat_runs)
+        ]
+        p50_values = [result.latency_ms_p50 for result in runs]
+        p95_values = [result.latency_ms_p95 for result in runs]
+        p50_ci_low, p50_ci_high = _ci(p50_values)
+        p95_ci_low, p95_ci_high = _ci(p95_values)
+        return PrefixCostResult(
+            depth=depth,
+            latency_ms_p50=sum(p50_values) / len(p50_values),
+            latency_ms_p95=sum(p95_values) / len(p95_values),
+            throughput_items_per_s=sum(result.throughput_items_per_s for result in runs) / len(runs),
+            peak_memory_mb=max(result.peak_memory_mb for result in runs),
+            model_bytes=runs[0].model_bytes,
+            latency_ms_p50_ci_low=p50_ci_low,
+            latency_ms_p50_ci_high=p50_ci_high,
+            latency_ms_p95_ci_low=p95_ci_low,
+            latency_ms_p95_ci_high=p95_ci_high,
+            benchmark_repeats=repeat_runs,
+        )
+
+    return {
+        depth: {
+            batch_size: _aggregate_runs(depth, sample_batch)
             for batch_size, sample_batch in benchmark_batches.items()
         }
         for depth in candidate_depths
@@ -164,9 +199,10 @@ def make_selection_cost_results(
 
 def compute_selection_target(selection_results, spec: SelectionSpec) -> float:
     full_depth = max(selection_results)
-    full_accuracy = selection_results[full_depth].accuracy
-    if spec.relative_to_full_accuracy_drop is not None:
-        return full_accuracy - spec.relative_to_full_accuracy_drop
+    full_metric = selection_results[full_depth].metric_value
+    if spec.target_kind in {"relative", "confidence_bound_relative"}:
+        assert spec.relative_to_full_accuracy_drop is not None
+        return full_metric - spec.relative_to_full_accuracy_drop
     assert spec.absolute_accuracy_target is not None
     return spec.absolute_accuracy_target
 
@@ -234,11 +270,13 @@ def run_workflow(
         grad_clip=config.training.grad_clip,
         gradient_accumulation_steps=config.training.gradient_accumulation_steps,
         rng=rng,
+        progressive_middle_depths=config.training.progressive_middle_depths,
     )
 
     selection_spec = SelectionSpec(
-        quality_metric="accuracy",
+        quality_metric=config.selection.quality_metric,
         cost_metric=config.selection.cost_metric,
+        target_kind=config.selection.target_kind,
         relative_to_full_accuracy_drop=config.selection.relative_accuracy_drop,
         absolute_accuracy_target=config.selection.absolute_accuracy_target,
     )
@@ -254,8 +292,20 @@ def run_workflow(
                 learning_rate=config.baseline.head_fit_learning_rate,
             )
 
-    candidate_depths = model.candidate_depths if config.baseline.kind in {"pods", "naive_truncation", "layerdrop"} else (max(model.candidate_depths),)
-    selection_results = evaluate_all_prefixes(model, val_loader, candidate_depths, device)
+    candidate_depths = (
+        model.candidate_depths
+        if config.baseline.kind in {"pods", "naive_truncation", "layerdrop", "progressive_shrinking"}
+        else (max(model.candidate_depths),)
+    )
+    selection_results = evaluate_all_prefixes(
+        model,
+        val_loader,
+        candidate_depths,
+        device,
+        metric_name=config.task.metric_name,
+        bootstrap_samples=config.experiment.quality_bootstrap_samples,
+        confidence_level=config.experiment.confidence_level,
+    )
     cost_results_by_batch = benchmark_prefixes(
         model=model,
         benchmark_batches=benchmark_batches,
@@ -263,27 +313,40 @@ def run_workflow(
         warmup_steps=config.benchmark.warmup_steps,
         timed_steps=config.benchmark.timed_steps,
         device=device,
+        repeat_runs=config.benchmark.repeat_runs,
+        confidence_level=config.experiment.confidence_level,
     )
     selection_cost_results = make_selection_cost_results(cost_results_by_batch, config.benchmark.selection_batch_size)
 
-    if config.baseline.kind in {"pods", "naive_truncation", "layerdrop"}:
+    if config.baseline.kind in {"pods", "naive_truncation", "layerdrop", "progressive_shrinking"}:
         selected_depth = select_prefix_depth(selection_results, selection_cost_results, selection_spec)
         selection_target_value = compute_selection_target(selection_results, selection_spec)
     else:
         selected_depth = candidate_depths[0]
-        selection_target_value = selection_results[selected_depth].accuracy
+        selection_target_value = selection_results[selected_depth].metric_value
 
     selected_prefix = model.extract_prefix(selected_depth)
-    final_result = evaluate_classifier(selected_prefix, test_loader, device, depth=selected_depth)
+    final_result = evaluate_classifier(
+        selected_prefix,
+        test_loader,
+        device,
+        depth=selected_depth,
+        metric_name=config.task.metric_name,
+        bootstrap_samples=config.experiment.quality_bootstrap_samples,
+        confidence_level=config.experiment.confidence_level,
+    )
     final_cost_by_batch = {
-        batch_size: benchmark_prefix(
-            model=selected_prefix,
-            sample_batch=sample_batch,
+        batch_size: benchmark_prefixes(
+            model=model,
+            benchmark_batches={batch_size: sample_batch},
+            candidate_depths=(selected_depth,),
             warmup_steps=config.benchmark.warmup_steps,
             timed_steps=config.benchmark.timed_steps,
             device=device,
-            depth=selected_depth,
+            repeat_runs=config.benchmark.repeat_runs,
+            confidence_level=config.experiment.confidence_level,
         )
+        [selected_depth][batch_size]
         for batch_size, sample_batch in benchmark_batches.items()
     }
 

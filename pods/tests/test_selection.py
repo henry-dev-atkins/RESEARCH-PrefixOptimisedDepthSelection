@@ -8,9 +8,9 @@ from pods.eval.select import PrefixCostResult, SelectionSpec, select_prefix_dept
 
 def test_select_prefix_depth_uses_relative_quality_target_and_cost() -> None:
     quality = {
-        1: PrefixQualityResult(depth=1, loss=1.0, accuracy=0.84, num_examples=10),
-        2: PrefixQualityResult(depth=2, loss=0.8, accuracy=0.89, num_examples=10),
-        3: PrefixQualityResult(depth=3, loss=0.7, accuracy=0.90, num_examples=10),
+        1: PrefixQualityResult(depth=1, loss=1.0, accuracy=0.84, metric_name="accuracy", metric_value=0.84, metric_ci_low=None, metric_ci_high=None, num_examples=10),
+        2: PrefixQualityResult(depth=2, loss=0.8, accuracy=0.89, metric_name="accuracy", metric_value=0.89, metric_ci_low=None, metric_ci_high=None, num_examples=10),
+        3: PrefixQualityResult(depth=3, loss=0.7, accuracy=0.90, metric_name="accuracy", metric_value=0.90, metric_ci_low=None, metric_ci_high=None, num_examples=10),
     }
     costs = {
         1: PrefixCostResult(depth=1, latency_ms_p50=1.0, latency_ms_p95=1.1, throughput_items_per_s=100.0, peak_memory_mb=10.0, model_bytes=100),
@@ -23,6 +23,7 @@ def test_select_prefix_depth_uses_relative_quality_target_and_cost() -> None:
         SelectionSpec(
             quality_metric="accuracy",
             cost_metric="latency_ms_p50",
+            target_kind="relative",
             relative_to_full_accuracy_drop=0.01,
             absolute_accuracy_target=None,
         ),
@@ -32,8 +33,8 @@ def test_select_prefix_depth_uses_relative_quality_target_and_cost() -> None:
 
 def test_select_prefix_depth_uses_shallower_depth_as_tie_break() -> None:
     quality = {
-        2: PrefixQualityResult(depth=2, loss=0.8, accuracy=0.90, num_examples=10),
-        3: PrefixQualityResult(depth=3, loss=0.7, accuracy=0.91, num_examples=10),
+        2: PrefixQualityResult(depth=2, loss=0.8, accuracy=0.90, metric_name="accuracy", metric_value=0.90, metric_ci_low=None, metric_ci_high=None, num_examples=10),
+        3: PrefixQualityResult(depth=3, loss=0.7, accuracy=0.91, metric_name="accuracy", metric_value=0.91, metric_ci_low=None, metric_ci_high=None, num_examples=10),
     }
     costs = {
         2: PrefixCostResult(depth=2, latency_ms_p50=2.0, latency_ms_p95=2.0, throughput_items_per_s=90.0, peak_memory_mb=20.0, model_bytes=100),
@@ -45,6 +46,7 @@ def test_select_prefix_depth_uses_shallower_depth_as_tie_break() -> None:
         SelectionSpec(
             quality_metric="accuracy",
             cost_metric="model_bytes",
+            target_kind="relative",
             relative_to_full_accuracy_drop=0.02,
             absolute_accuracy_target=None,
         ),
@@ -54,8 +56,8 @@ def test_select_prefix_depth_uses_shallower_depth_as_tie_break() -> None:
 
 def test_select_prefix_depth_fails_loudly_when_no_depth_qualifies() -> None:
     quality = {
-        1: PrefixQualityResult(depth=1, loss=1.0, accuracy=0.70, num_examples=10),
-        2: PrefixQualityResult(depth=2, loss=0.9, accuracy=0.71, num_examples=10),
+        1: PrefixQualityResult(depth=1, loss=1.0, accuracy=0.70, metric_name="accuracy", metric_value=0.70, metric_ci_low=None, metric_ci_high=None, num_examples=10),
+        2: PrefixQualityResult(depth=2, loss=0.9, accuracy=0.71, metric_name="accuracy", metric_value=0.71, metric_ci_low=None, metric_ci_high=None, num_examples=10),
     }
     costs = {
         1: PrefixCostResult(depth=1, latency_ms_p50=1.0, latency_ms_p95=1.0, throughput_items_per_s=10.0, peak_memory_mb=10.0, model_bytes=100),
@@ -68,6 +70,7 @@ def test_select_prefix_depth_fails_loudly_when_no_depth_qualifies() -> None:
             SelectionSpec(
                 quality_metric="accuracy",
                 cost_metric="latency_ms_p50",
+                target_kind="absolute",
                 relative_to_full_accuracy_drop=None,
                 absolute_accuracy_target=0.9,
             ),

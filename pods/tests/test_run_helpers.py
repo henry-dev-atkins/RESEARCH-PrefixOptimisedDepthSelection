@@ -46,6 +46,7 @@ def _make_config(output_dir: str) -> PodsConfig:
         selection=SelectionConfig(
             quality_metric="accuracy",
             cost_metric="latency_ms_p50",
+            target_kind="relative",
             relative_accuracy_drop=0.1,
             absolute_accuracy_target=None,
         ),

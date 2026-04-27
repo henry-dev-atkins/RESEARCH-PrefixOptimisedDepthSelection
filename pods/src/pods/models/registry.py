@@ -48,6 +48,7 @@ def build_model(config: PodsConfig, target_depth: int | None = None) -> PrefixCa
             num_classes=config.task.num_classes,
             candidate_depths=candidate_depths,
             dropout=config.model.dropout,
+            head_type=config.model.head_type,
         )
     if config.model.family == "roberta":
         assert config.model.pretrained_model_name is not None
@@ -56,5 +57,6 @@ def build_model(config: PodsConfig, target_depth: int | None = None) -> PrefixCa
             num_classes=config.task.num_classes,
             candidate_depths=candidate_depths,
             dropout=config.model.dropout,
+            head_type=config.model.head_type,
         )
     raise ValueError(f"Unsupported model family: {config.model.family}")

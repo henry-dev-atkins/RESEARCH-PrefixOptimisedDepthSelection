@@ -27,6 +27,10 @@ def _summarise_selection_results(runs: list[dict[str, Any]]) -> dict[str, Any]:
         for depth, metrics in run.get("selection_results", {}).items():
             rows.append({"depth": int(depth), "metric": "accuracy", "value": metrics["accuracy"]})
             rows.append({"depth": int(depth), "metric": "loss", "value": metrics["loss"]})
+            metric_name = metrics.get("metric_name")
+            metric_value = metrics.get("metric_value")
+            if metric_name is not None and metric_value is not None and metric_name != "accuracy":
+                rows.append({"depth": int(depth), "metric": metric_name, "value": metric_value})
     metrics_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         metrics_by_name[row["metric"]].append(row)
@@ -41,7 +45,19 @@ def _summarise_cost_results(runs: list[dict[str, Any]], key: str) -> dict[str, A
     for run in runs:
         for depth, batch_results in run.get(key, {}).items():
             for batch_size, metrics in batch_results.items():
-                for metric_name in ("latency_ms_p50", "latency_ms_p95", "throughput_items_per_s", "peak_memory_mb", "model_bytes"):
+                for metric_name in (
+                    "latency_ms_p50",
+                    "latency_ms_p95",
+                    "latency_ms_p50_ci_low",
+                    "latency_ms_p50_ci_high",
+                    "latency_ms_p95_ci_low",
+                    "latency_ms_p95_ci_high",
+                    "throughput_items_per_s",
+                    "peak_memory_mb",
+                    "model_bytes",
+                ):
+                    if metrics.get(metric_name) is None:
+                        continue
                     rows.append(
                         {
                             "depth": int(depth),
@@ -71,6 +87,10 @@ def _summarise_final_results(runs: list[dict[str, Any]]) -> dict[str, Any]:
         for depth, metrics in run.get("final_results", {}).items():
             rows.append({"depth": int(depth), "metric": "accuracy", "value": metrics["accuracy"]})
             rows.append({"depth": int(depth), "metric": "loss", "value": metrics["loss"]})
+            metric_name = metrics.get("metric_name")
+            metric_value = metrics.get("metric_value")
+            if metric_name is not None and metric_value is not None and metric_name != "accuracy":
+                rows.append({"depth": int(depth), "metric": metric_name, "value": metric_value})
     metrics_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         metrics_by_name[row["metric"]].append(row)
@@ -113,15 +133,20 @@ def summarise_results(raw_root: Path) -> dict[str, Any]:
     summary: dict[str, Any] = {}
     for key, runs in grouped.items():
         dataset, model_family, baseline_kind = key
-        final_accuracies = [next(iter(run["final_results"].values()))["accuracy"] for run in runs]
+        first_final_result = next(iter(runs[0]["final_results"].values()))
+        task_metric_name = first_final_result.get("metric_name", "accuracy")
+        final_metric_values = [next(iter(run["final_results"].values())).get("metric_value", next(iter(run["final_results"].values()))["accuracy"]) for run in runs]
         summary[f"{dataset}:{model_family}:{baseline_kind}"] = {
             "num_runs": len(runs),
             "seeds": [run["experiment"]["seed"] for run in runs if "experiment" in run and "seed" in run["experiment"]],
             "selected_depths": [run["selected_depth"] for run in runs],
             "selection_quality_metric": runs[0].get("selection_spec", {}).get("quality_metric"),
             "selection_cost_metric": runs[0].get("selection_spec", {}).get("cost_metric"),
-            "final_accuracy_mean": mean(final_accuracies),
-            "final_accuracy_std": pstdev(final_accuracies) if len(final_accuracies) > 1 else 0.0,
+            "task_metric_name": task_metric_name,
+            "final_metric_mean": mean(final_metric_values),
+            "final_metric_std": pstdev(final_metric_values) if len(final_metric_values) > 1 else 0.0,
+            "final_accuracy_mean": mean(final_metric_values),
+            "final_accuracy_std": pstdev(final_metric_values) if len(final_metric_values) > 1 else 0.0,
             "selection_results_by_depth": _summarise_selection_results(runs),
             "selection_costs_by_depth_and_batch_size": _summarise_cost_results(runs, "cost_results"),
             "final_results_by_depth": _summarise_final_results(runs),

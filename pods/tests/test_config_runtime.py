@@ -172,3 +172,58 @@ def test_config_accepts_roberta_text_classification(tmp_path: Path) -> None:
     config = load_config(_write_config(tmp_path, data))
     assert config.model.family == "roberta"
     assert config.training.mode == "layerdrop"
+
+
+def test_config_accepts_extended_glue_tasks_and_transformer_variants(tmp_path: Path) -> None:
+    data = _base_config()
+    data["task"] = {
+        "type": "text_classification",
+        "dataset": "qqp",
+        "num_classes": 2,
+        "selection_fraction": 0.1,
+        "text_fields": ["question1", "question2"],
+        "max_length": 128,
+        "metric_name": "accuracy",
+    }
+    data["model"] = {
+        "family": "bert",
+        "pretrained_model_name": "bert-base-uncased",
+        "candidate_depths": [3, 6, 9, 12],
+        "head_type": "bert_cls_mlp",
+        "norm_type": "none",
+        "dropout": 0.1,
+    }
+    data["training"]["mode"] = "progressive_sandwich"
+    data["training"]["progressive_middle_depths"] = [0, 1, 2]
+    data["baseline"]["kind"] = "progressive_shrinking"
+    data["selection"]["target_kind"] = "confidence_bound_relative"
+    config = load_config(_write_config(tmp_path, data))
+    assert config.task.dataset == "qqp"
+    assert config.model.candidate_depths == (3, 6, 9, 12)
+    assert config.training.mode == "progressive_sandwich"
+    assert config.baseline.kind == "progressive_shrinking"
+
+
+def test_config_accepts_cola_metric_and_selection_metric(tmp_path: Path) -> None:
+    data = _base_config()
+    data["task"] = {
+        "type": "text_classification",
+        "dataset": "cola",
+        "num_classes": 2,
+        "selection_fraction": 0.1,
+        "text_fields": ["sentence"],
+        "max_length": 128,
+        "metric_name": "matthews_correlation",
+    }
+    data["model"] = {
+        "family": "bert",
+        "pretrained_model_name": "bert-base-uncased",
+        "candidate_depths": [2, 6, 12],
+        "head_type": "bert_cls_linear",
+        "norm_type": "none",
+        "dropout": 0.1,
+    }
+    data["selection"]["quality_metric"] = "matthews_correlation"
+    config = load_config(_write_config(tmp_path, data))
+    assert config.task.metric_name == "matthews_correlation"
+    assert config.selection.quality_metric == "matthews_correlation"

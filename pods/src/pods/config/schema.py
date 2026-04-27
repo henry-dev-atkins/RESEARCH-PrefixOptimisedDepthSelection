@@ -20,6 +20,8 @@ class ExperimentConfig:
     tags: tuple[str, ...] = ()
     save_model: bool = True
     save_selected_prefix: bool = True
+    quality_bootstrap_samples: int = 0
+    confidence_level: float = 0.95
 
 
 @dataclass(frozen=True)
@@ -74,12 +76,14 @@ class TrainingConfig:
     warmup_ratio: float = 0.0
     max_train_steps: int | None = None
     layerdrop_prob: float = 0.0
+    progressive_middle_depths: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
 class SelectionConfig:
     quality_metric: str
     cost_metric: str
+    target_kind: str
     relative_accuracy_drop: float | None
     absolute_accuracy_target: float | None
 
@@ -90,6 +94,7 @@ class BenchmarkConfig:
     selection_batch_size: int
     warmup_steps: int
     timed_steps: int
+    repeat_runs: int = 1
 
 
 @dataclass(frozen=True)
@@ -142,6 +147,8 @@ def load_config(path: str | Path) -> PodsConfig:
             tags=tuple(experiment_data.get("tags", [])),
             save_model=bool(experiment_data.get("save_model", True)),
             save_selected_prefix=bool(experiment_data.get("save_selected_prefix", True)),
+            quality_bootstrap_samples=int(experiment_data.get("quality_bootstrap_samples", 0)),
+            confidence_level=float(experiment_data.get("confidence_level", 0.95)),
         ),
         task=TaskConfig(
             type=task_data["type"],
@@ -190,10 +197,15 @@ def load_config(path: str | Path) -> PodsConfig:
             warmup_ratio=float(training_data.get("warmup_ratio", 0.0)),
             max_train_steps=None if training_data.get("max_train_steps") is None else int(training_data["max_train_steps"]),
             layerdrop_prob=float(training_data.get("layerdrop_prob", 0.0)),
+            progressive_middle_depths=tuple(int(value) for value in training_data.get("progressive_middle_depths", [])),
         ),
         selection=SelectionConfig(
             quality_metric=selection_data["quality_metric"],
             cost_metric=selection_data["cost_metric"],
+            target_kind=selection_data.get(
+                "target_kind",
+                "relative" if selection_data.get("relative_accuracy_drop") is not None else "absolute",
+            ),
             relative_accuracy_drop=selection_data["relative_accuracy_drop"],
             absolute_accuracy_target=selection_data["absolute_accuracy_target"],
         ),
@@ -202,6 +214,7 @@ def load_config(path: str | Path) -> PodsConfig:
             selection_batch_size=int(benchmark_data["selection_batch_size"]),
             warmup_steps=int(benchmark_data["warmup_steps"]),
             timed_steps=int(benchmark_data["timed_steps"]),
+            repeat_runs=int(benchmark_data.get("repeat_runs", 1)),
         ),
         baseline=BaselineConfig(
             kind=baseline_data["kind"],
@@ -221,9 +234,23 @@ def config_to_dict(config: PodsConfig) -> dict[str, Any]:
 def _validate_config(config: PodsConfig) -> None:
     _ensure(config.task.type in {"image_classification", "text_classification"}, "task.type is unsupported")
     _ensure(config.task.selection_fraction > 0.0 and config.task.selection_fraction < 1.0, "task.selection_fraction must be between 0 and 1")
-    _ensure(config.model.head_type in {"linear", "bert_cls", "roberta_cls"}, "model.head_type is unsupported")
+    _ensure(
+        config.model.head_type in {
+            "linear",
+            "bert_cls",
+            "roberta_cls",
+            "bert_cls_linear",
+            "roberta_cls_linear",
+            "bert_cls_mlp",
+            "roberta_cls_mlp",
+        },
+        "model.head_type is unsupported",
+    )
     _ensure(config.model.norm_type in {"none", "groupnorm", "batchnorm"}, "model.norm_type is unsupported")
-    _ensure(config.training.mode in {"all", "sandwich", "full_only", "layerdrop"}, "training.mode must be 'all', 'sandwich', 'full_only', or 'layerdrop'")
+    _ensure(
+        config.training.mode in {"all", "sandwich", "full_only", "layerdrop", "progressive_sandwich"},
+        "training.mode must be 'all', 'sandwich', 'full_only', 'layerdrop', or 'progressive_sandwich'",
+    )
     _ensure(config.training.mixed_precision in {"none", "fp16", "bf16"}, "training.mixed_precision must be 'none', 'fp16', or 'bf16'")
     _ensure(config.training.scheduler in {"none", "cosine", "multistep"}, "training.scheduler is unsupported")
     _ensure(config.training.label_smoothing >= 0.0, "training.label_smoothing must be non-negative")
@@ -234,6 +261,8 @@ def _validate_config(config: PodsConfig) -> None:
     _ensure(config.training.gradient_accumulation_steps > 0, "training.gradient_accumulation_steps must be positive")
     _ensure(config.training.warmup_ratio >= 0.0 and config.training.warmup_ratio <= 1.0, "training.warmup_ratio must be between 0 and 1")
     _ensure(config.training.layerdrop_prob >= 0.0 and config.training.layerdrop_prob < 1.0, "training.layerdrop_prob must be between 0 and 1")
+    _ensure(config.experiment.quality_bootstrap_samples >= 0, "experiment.quality_bootstrap_samples must be non-negative")
+    _ensure(0.0 < config.experiment.confidence_level < 1.0, "experiment.confidence_level must be between 0 and 1")
     _ensure(not config.training.persistent_workers or config.training.num_workers > 0, "training.persistent_workers requires training.num_workers > 0")
     if config.training.scheduler == "cosine":
         _ensure(config.training.scheduler_t_max is not None, "training.scheduler_t_max is required for cosine scheduler")
@@ -241,22 +270,39 @@ def _validate_config(config: PodsConfig) -> None:
         _ensure(config.training.scheduler_milestones, "training.scheduler_milestones are required for multistep scheduler")
         _ensure(config.training.scheduler_gamma is not None, "training.scheduler_gamma is required for multistep scheduler")
 
-    _ensure(config.selection.quality_metric == "accuracy", "selection.quality_metric must be 'accuracy'")
+    _ensure(
+        config.selection.quality_metric in {"accuracy", "matthews_correlation"},
+        "selection.quality_metric must be 'accuracy' or 'matthews_correlation'",
+    )
     _ensure(
         config.selection.cost_metric in {"latency_ms_p50", "latency_ms_p95", "peak_memory_mb", "model_bytes"},
         "selection.cost_metric is unsupported",
     )
     _ensure(
-        (config.selection.relative_accuracy_drop is None) != (config.selection.absolute_accuracy_target is None),
-        "Exactly one of selection.relative_accuracy_drop and selection.absolute_accuracy_target must be set",
+        config.selection.target_kind in {"relative", "absolute", "confidence_bound_relative", "confidence_bound_absolute"},
+        "selection.target_kind is unsupported",
     )
+    if config.selection.target_kind in {"relative", "confidence_bound_relative"}:
+        _ensure(config.selection.relative_accuracy_drop is not None, "Relative selection requires relative_accuracy_drop")
+        _ensure(config.selection.absolute_accuracy_target is None, "Relative selection cannot set absolute_accuracy_target")
+    if config.selection.target_kind in {"absolute", "confidence_bound_absolute"}:
+        _ensure(config.selection.absolute_accuracy_target is not None, "Absolute selection requires absolute_accuracy_target")
+        _ensure(config.selection.relative_accuracy_drop is None, "Absolute selection cannot set relative_accuracy_drop")
     _ensure(config.benchmark.selection_batch_size in config.benchmark.batch_sizes, "benchmark.selection_batch_size must be present in benchmark.batch_sizes")
-    _ensure(config.baseline.kind in {"pods", "full", "shallow_independent", "naive_truncation", "layerdrop"}, "baseline.kind is unsupported")
+    _ensure(config.benchmark.repeat_runs > 0, "benchmark.repeat_runs must be positive")
+    _ensure(
+        config.baseline.kind in {"pods", "full", "shallow_independent", "naive_truncation", "layerdrop", "progressive_shrinking"},
+        "baseline.kind is unsupported",
+    )
     _ensure(config.baseline.head_fit_epochs > 0, "baseline.head_fit_epochs must be positive")
     _ensure(config.baseline.head_fit_learning_rate > 0.0, "baseline.head_fit_learning_rate must be positive")
 
     if config.training.mode == "sandwich":
         _ensure(len(config.model.candidate_depths) >= 2, "sandwich mode requires at least two candidate depths")
+    if config.training.mode == "progressive_sandwich":
+        _ensure(len(config.model.candidate_depths) >= 2, "progressive_sandwich requires at least two candidate depths")
+        _ensure(config.training.progressive_middle_depths, "progressive_sandwich requires training.progressive_middle_depths")
+        _ensure(all(value >= 0 for value in config.training.progressive_middle_depths), "progressive_middle_depths must be non-negative")
     if config.training.mode == "layerdrop":
         _ensure(config.baseline.kind == "layerdrop", "training.mode='layerdrop' requires baseline.kind='layerdrop'")
         _ensure(config.task.type == "text_classification", "training.mode='layerdrop' currently supports only text_classification")
@@ -265,15 +311,23 @@ def _validate_config(config: PodsConfig) -> None:
     if config.baseline.kind == "shallow_independent":
         _ensure(config.baseline.target_depth is not None, "baseline.target_depth is required for shallow_independent")
         _ensure(config.baseline.target_depth in config.model.candidate_depths, "baseline.target_depth must be one of model.candidate_depths")
-    if config.baseline.kind in {"pods", "full", "naive_truncation", "layerdrop"}:
+    if config.baseline.kind == "progressive_shrinking":
+        _ensure(config.training.mode == "progressive_sandwich", "progressive_shrinking requires training.mode='progressive_sandwich'")
+    if config.baseline.kind in {"pods", "full", "naive_truncation", "layerdrop", "progressive_shrinking"}:
         _ensure(config.baseline.target_depth is None, "baseline.target_depth is only valid for shallow_independent")
 
     if config.task.type == "image_classification":
         _ensure(config.task.metric_name == "accuracy", "image classification currently supports only metric_name='accuracy'")
     elif config.task.type == "text_classification":
-        _ensure(config.task.dataset in {"sst2", "mrpc", "rte"}, "text_classification currently supports only sst2, mrpc, and rte")
+        _ensure(config.task.dataset in {"sst2", "mrpc", "rte", "qqp", "qnli", "cola"}, "text_classification currently supports only sst2, mrpc, rte, qqp, qnli, and cola")
         _ensure(config.task.text_fields, "text classification tasks require task.text_fields")
         _ensure(config.task.max_length > 0, "task.max_length must be positive")
+        if config.task.dataset == "cola":
+            _ensure(config.task.metric_name == "matthews_correlation", "cola requires metric_name='matthews_correlation'")
+            _ensure(config.selection.quality_metric == "matthews_correlation", "cola requires selection.quality_metric='matthews_correlation'")
+        else:
+            _ensure(config.task.metric_name == "accuracy", "Non-CoLA text tasks currently support only metric_name='accuracy'")
+            _ensure(config.selection.quality_metric == "accuracy", "Non-CoLA text tasks currently support only selection.quality_metric='accuracy'")
 
     if config.model.family == "mlp":
         _ensure(config.task.type == "image_classification", "MLP models require image_classification tasks")
@@ -293,9 +347,22 @@ def _validate_config(config: PodsConfig) -> None:
     elif config.model.family in {"bert", "roberta"}:
         _ensure(config.task.type == "text_classification", "Transformer models require text_classification tasks")
         _ensure(config.model.pretrained_model_name is not None, "Transformer models require model.pretrained_model_name")
-        _ensure(config.model.head_type in {"bert_cls", "roberta_cls"}, "Transformer models require a transformer classification head type")
+        _ensure(
+            config.model.head_type in {
+                "bert_cls",
+                "roberta_cls",
+                "bert_cls_linear",
+                "roberta_cls_linear",
+                "bert_cls_mlp",
+                "roberta_cls_mlp",
+            },
+            "Transformer models require a transformer classification head type",
+        )
         _ensure(config.model.norm_type == "none", "Transformer models require model.norm_type='none'")
-        _ensure(config.model.candidate_depths == (2, 4, 6, 8, 10, 12), "Transformer candidate_depths must be [2, 4, 6, 8, 10, 12]")
+        _ensure(
+            config.model.candidate_depths in {(2, 4, 6, 8, 10, 12), (3, 6, 9, 12), (2, 6, 12)},
+            "Transformer candidate_depths must be one of [2,4,6,8,10,12], [3,6,9,12], or [2,6,12]",
+        )
         _ensure(config.model.dropout >= 0.0, "model.dropout must be non-negative")
     else:
         raise ValueError(f"Unsupported model family: {config.model.family}")
