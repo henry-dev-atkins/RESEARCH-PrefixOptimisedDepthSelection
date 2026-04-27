@@ -52,16 +52,18 @@ For environment workflow notes and dependency update policy, see [pods/docs/deve
 
 Current work tracking docs:
 
+- [Session 3 handover](pods/docs/session3_handover_2026-04-27.md)
 - [Session 2 handover](pods/docs/session2_handover_2026-04-26.md)
 - [Session 2 TODO](pods/docs/session2_todo.md)
 - [Milestone validation](pods/docs/milestone_validation.md)
 - [AI learnings log](AI_LEARNINGS_LOG.md)
 
-Current Session 2 position:
+Current Session 3 position:
 
 - the strict transformer-proof milestone is now complete
-- BERT evidence is complete for `sst2`, `mrpc`, and `rte`, including the LayerDrop baseline
-- `sst2_roberta_base_full` is completed as the first accepted RoBERTa raw run
-- the broader Session 2 comparator sweep is still open because most RoBERTa main-variant evidence is not yet complete
+- Milestone 4 infrastructure is committed
+- the new-task seed-7 BERT main matrix is complete for `qqp`, `qnli`, and `cola`
+- new-task seed expansion has started but is not complete
+- Milestone 4 is still in progress because the remaining multi-seed main runs, baselines, ablations, and validation docs are still open
 
 
