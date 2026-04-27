@@ -1,0 +1,66 @@
+experiment:
+  name: qqp_bert_base_pods_all_seed11
+  seed: 11
+  output_dir: pods/results/raw/qqp_bert_base_pods_all_seed11
+  tags: [session3, glue, qqp, bert-base, pods, all, milestone4]
+  quality_bootstrap_samples: 256
+  confidence_level: 0.95
+
+task:
+  type: text_classification
+  dataset: qqp
+  num_classes: 2
+  selection_fraction: 0.1
+  text_fields: [question1, question2]
+  max_length: 128
+  metric_name: accuracy
+
+model:
+  family: bert
+  pretrained_model_name: bert-base-uncased
+  candidate_depths: [2, 4, 6, 8, 10, 12]
+  head_type: bert_cls
+  norm_type: none
+  dropout: 0.1
+
+training:
+  mode: all
+  epochs: 2
+  batch_size: 16
+  optimiser: adamw
+  learning_rate: 0.00002
+  weight_decay: 0.01
+  grad_clip: 1.0
+  mixed_precision: bf16
+  weight_power: 1.0
+  num_middle_depths: 0
+  scheduler: cosine
+  scheduler_t_max: 2
+  label_smoothing: 0.0
+  momentum: 0.9
+  num_workers: 0
+  pin_memory: true
+  persistent_workers: false
+  drop_last: false
+  gradient_accumulation_steps: 2
+  warmup_ratio: 0.1
+
+selection:
+  quality_metric: accuracy
+  cost_metric: latency_ms_p50
+  target_kind: relative
+  relative_accuracy_drop: 0.01
+  absolute_accuracy_target: null
+
+benchmark:
+  batch_sizes: [1, 8]
+  selection_batch_size: 1
+  warmup_steps: 10
+  timed_steps: 30
+  repeat_runs: 5
+
+baseline:
+  kind: pods
+  target_depth: null
+  head_fit_epochs: 3
+  head_fit_learning_rate: 0.001
