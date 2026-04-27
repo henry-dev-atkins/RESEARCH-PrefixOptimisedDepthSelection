@@ -254,7 +254,7 @@ def run_workflow(
                 learning_rate=config.baseline.head_fit_learning_rate,
             )
 
-    candidate_depths = model.candidate_depths if config.baseline.kind in {"pods", "naive_truncation"} else (max(model.candidate_depths),)
+    candidate_depths = model.candidate_depths if config.baseline.kind in {"pods", "naive_truncation", "layerdrop"} else (max(model.candidate_depths),)
     selection_results = evaluate_all_prefixes(model, val_loader, candidate_depths, device)
     cost_results_by_batch = benchmark_prefixes(
         model=model,
@@ -266,7 +266,7 @@ def run_workflow(
     )
     selection_cost_results = make_selection_cost_results(cost_results_by_batch, config.benchmark.selection_batch_size)
 
-    if config.baseline.kind in {"pods", "naive_truncation"}:
+    if config.baseline.kind in {"pods", "naive_truncation", "layerdrop"}:
         selected_depth = select_prefix_depth(selection_results, selection_cost_results, selection_spec)
         selection_target_value = compute_selection_target(selection_results, selection_spec)
     else:

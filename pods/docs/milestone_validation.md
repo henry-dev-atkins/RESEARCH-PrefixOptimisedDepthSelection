@@ -1,6 +1,6 @@
 ## Milestone Validation
 
-This document records the current validation state of Milestone 1 and Milestone 2 against `SPEC.md`.
+This document records the current validation state of Milestones 1, 2, and 3 against `SPEC.md`.
 
 ### Milestone 1: Machinery
 
@@ -107,9 +107,71 @@ Exit criteria:
 
 Milestone 2 result: PASS BY EXPLICIT OVERRIDE
 
+### Milestone 3: Transformer proof
+
+Deliverables:
+
+1. BERT-base PODS wrapper: PASS
+   Evidence:
+   - `pods/src/pods/models/bert.py`
+   - `pods/src/pods/models/transformer_prefix.py`
+   - `pods/tests/test_transformer_prefix_extraction.py`
+2. RoBERTa-base PODS wrapper: PASS
+   Evidence:
+   - `pods/src/pods/models/roberta.py`
+   - `pods/src/pods/models/transformer_prefix.py`
+   - `pods/tests/test_transformer_prefix_extraction.py`
+   - `pods/results/raw/sst2_roberta_base_full/results.json`
+3. GLUE splits: PASS
+   Evidence:
+   - `pods/src/pods/data/datasets.py`
+   - supported tracked tasks: `sst2`, `mrpc`, `rte`
+4. Shallow BERT baselines: PASS
+   Evidence:
+   - `pods/results/raw/sst2_bert_base_shallow_d2/results.json`
+   - `pods/results/raw/sst2_bert_base_shallow_d4/results.json`
+   - `pods/results/raw/mrpc_bert_base_shallow_d2/results.json`
+   - `pods/results/raw/mrpc_bert_base_shallow_d4/results.json`
+   - `pods/results/raw/rte_bert_base_shallow_d2/results.json`
+   - `pods/results/raw/rte_bert_base_shallow_d4/results.json`
+5. LayerDrop-style baseline: PASS
+   Evidence:
+   - `pods/results/raw/sst2_bert_base_layerdrop/results.json`
+   - `pods/results/raw/mrpc_bert_base_layerdrop/results.json`
+   - `pods/results/raw/rte_bert_base_layerdrop/results.json`
+   - processed summaries:
+     - `sst2:bert:layerdrop`
+     - `mrpc:bert:layerdrop`
+     - `rte:bert:layerdrop`
+
+Exit criteria:
+
+1. At least three GLUE tasks complete: PASS
+   Evidence:
+   - BERT task coverage is complete for `sst2`, `mrpc`, and `rte`
+   - main variants `full`, `pods_all`, and `pods_sandwich` are present for all three tasks
+2. Extracted prefix benchmarking works: PASS
+   Evidence:
+   - `pods/src/pods/experiments/runner.py` benchmarks `model.extract_prefix(depth)`
+   - extraction parity is covered by `pods/tests/test_transformer_prefix_extraction.py`
+   - LayerDrop reruns now record multi-depth `selection_results` and `cost_results` across depths `2, 4, 6, 8, 10, 12`
+3. No hidden-state shortcut is used in cost measurement: PASS
+   Evidence:
+   - `pods/src/pods/experiments/runner.py` calls `benchmark_prefix` on extracted prefix modules
+   - `pods/src/pods/eval/benchmark.py` measures the extracted module forward pass directly
+
+Milestone 3 result: PASS
+
+### Session 2 Position After Milestone 3
+
+1. The strict `SPEC.md` Milestone 3 bar is now complete.
+2. This is not the same as full Session 2 comparator closure.
+3. The remaining Session 2 gap is the incomplete RoBERTa main-variant block beyond the accepted `sst2_roberta_base_full` run.
+
 ### Residual Caveats
 
 1. Milestone 2 was accepted by explicit user override after the spec was updated to allow an objective-mismatch override with supporting analysis.
 2. The current CIFAR-100 evidence still does not show PODS beating naive truncation in raw measured accuracy terms and should continue to be analysed rather than ignored.
 3. The benchmark component is reproducible enough for milestone validation, but wall-clock latency itself still varies slightly across reruns, so exact benchmark-metric identity should not be expected.
 4. Processed summaries and plots are generated from valid CUDA-backed runs only and should be treated as the current source of truth for this milestone pass.
+5. Milestone 3 closure here is the strict spec-minimum transformer proof, not a claim that the broader RoBERTa comparator programme is complete.

@@ -109,6 +109,56 @@ def test_run_workflow_persists_cost_results_and_final_result(tmp_path) -> None:
     assert output["selected_depth"] in {1, 2}
 
 
+def test_run_workflow_layerdrop_evaluates_and_selects_across_all_candidate_depths(tmp_path) -> None:
+    config = _make_config(str(tmp_path))
+    config = PodsConfig(
+        experiment=config.experiment,
+        task=config.task,
+        model=config.model,
+        training=TrainingConfig(
+            mode="layerdrop",
+            epochs=1,
+            batch_size=8,
+            optimiser="adamw",
+            learning_rate=0.001,
+            weight_decay=0.0,
+            grad_clip=1.0,
+            mixed_precision="none",
+            weight_power=1.0,
+            num_middle_depths=0,
+            scheduler="none",
+            layerdrop_prob=0.2,
+        ),
+        selection=config.selection,
+        benchmark=config.benchmark,
+        baseline=BaselineConfig(kind="layerdrop"),
+    )
+    model = PodsMLP(input_shape=(1, 4, 4), hidden_dims=(8, 8), num_classes=3, candidate_depths=(1, 2))
+
+    train_dataset = TensorDataset(torch.randn(16, 1, 4, 4), torch.randint(0, 3, (16,)))
+    val_dataset = TensorDataset(torch.randn(8, 1, 4, 4), torch.randint(0, 3, (8,)))
+    test_dataset = TensorDataset(torch.randn(8, 1, 4, 4), torch.randint(0, 3, (8,)))
+
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=8, shuffle=False)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=8, shuffle=False)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=8, shuffle=False)
+
+    output, _, _ = run_workflow(
+        config=config,
+        model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        test_loader=test_loader,
+        selection_val_dataset=val_dataset,
+        device=torch.device("cpu"),
+    )
+
+    assert set(output["selection_results"]) == {1, 2}
+    assert set(output["cost_results"]) == {1, 2}
+    assert output["resolved_candidate_depths"] == [1, 2]
+    assert output["selected_depth"] in {1, 2}
+
+
 def test_summarise_results_groups_runs_by_dataset_model_and_baseline(tmp_path) -> None:
     raw_root = tmp_path / "raw"
     run_dir = raw_root / "run1"
