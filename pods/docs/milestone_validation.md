@@ -1,6 +1,6 @@
 ## Milestone Validation
 
-This document records the current validation state of Milestones 1, 2, and 3 against `SPEC.md`.
+This document records the current validation state of Milestones 1, 2, 3, and 4 against `SPEC.md`.
 
 ### Milestone 1: Machinery
 
@@ -168,6 +168,107 @@ Milestone 3 result: PASS
 2. This is not the same as full Session 2 comparator closure.
 3. The remaining Session 2 gap is the incomplete RoBERTa main-variant block beyond the accepted `sst2_roberta_base_full` run.
 
+### Milestone 4: Full empirical sweep under the chosen BERT-first scope
+
+Scope used for this validation pass:
+
+- BERT-first only
+- six-task GLUE classification block:
+  - `sst2`
+  - `mrpc`
+  - `rte`
+  - `qqp`
+  - `qnli`
+  - `cola`
+- `STS-B` deferred
+- `MNLI` deferred
+- RoBERTa not required for Milestone 4 closure
+
+Deliverables:
+
+1. Main BERT matrix across three seeds for all six tasks: PASS
+   Evidence:
+   - processed summaries:
+     - `pods/results/processed/sst2_frontier_summary.json`
+     - `pods/results/processed/mrpc_frontier_summary.json`
+     - `pods/results/processed/rte_frontier_summary.json`
+     - `pods/results/processed/qqp_frontier_summary.json`
+     - `pods/results/processed/qnli_frontier_summary.json`
+     - `pods/results/processed/cola_frontier_summary.json`
+   - each task now has:
+     - `full`
+     - `pods_all`
+     - `pods_sandwich`
+     - seeds `7, 11, 19`
+2. New-task baseline surface for `qqp`, `qnli`, and `cola`: PASS
+   Evidence:
+   - `qqp` raw baseline runs:
+     - `pods/results/raw/qqp_bert_base_shallow_d2/results.json`
+     - `pods/results/raw/qqp_bert_base_shallow_d4/results.json`
+     - `pods/results/raw/qqp_bert_base_naive_truncation/results.json`
+     - `pods/results/raw/qqp_bert_base_layerdrop/results.json`
+   - `qnli` raw baseline runs:
+     - `pods/results/raw/qnli_bert_base_shallow_d2/results.json`
+     - `pods/results/raw/qnli_bert_base_shallow_d4/results.json`
+     - `pods/results/raw/qnli_bert_base_naive_truncation/results.json`
+     - `pods/results/raw/qnli_bert_base_layerdrop/results.json`
+   - `cola` raw baseline runs:
+     - `pods/results/raw/cola_bert_base_shallow_d2/results.json`
+     - `pods/results/raw/cola_bert_base_shallow_d4/results.json`
+     - `pods/results/raw/cola_bert_base_naive_truncation/results.json`
+     - `pods/results/raw/cola_bert_base_layerdrop/results.json`
+3. Multi-depth deployable-prefix baselines preserve selectable prefix evidence: PASS
+   Evidence:
+   - `qqp`, `qnli`, and `cola` `naive_truncation` runs all record `selection_results` and `cost_results` across depths `2, 4, 6, 8, 10, 12`
+   - `qqp`, `qnli`, and `cola` `layerdrop` runs also record `selection_results` and `cost_results` across depths `2, 4, 6, 8, 10, 12`
+   - no new-task LayerDrop run collapsed to deepest-only evaluation
+
+Exit criteria:
+
+1. Main matrix complete for six tasks, three variants, and three seeds: PASS
+   Evidence:
+   - `54 / 54` BERT main-matrix runs are present and processed under the chosen Milestone 4 scope
+2. New tasks are compared against the intended static baselines: PASS
+   Evidence:
+   - processed summaries for `qqp`, `qnli`, and `cola` each contain:
+     - `full`
+     - `pods_all`
+     - `pods_sandwich`
+     - `shallow_independent_d2`
+     - `shallow_independent_d4`
+     - `naive_truncation`
+     - `layerdrop`
+3. The processed summaries are sufficient to support the intended Milestone 4 comparisons: PASS
+   Evidence:
+   - `qqp`
+     - `full` mean accuracy `0.9056888449171407`
+     - `pods_all` mean accuracy `0.8995135625360706`
+     - `pods_sandwich` mean accuracy `0.9059279412977163`
+     - `naive_truncation` accuracy `0.9067771456838981`
+   - `qnli`
+     - `full` mean accuracy `0.9123802550491183`
+     - `pods_all` mean accuracy `0.9087192629202514`
+     - `pods_sandwich` mean accuracy `0.9117090731588261`
+     - `naive_truncation` accuracy `0.9093904448105437`
+   - `cola`
+     - `full` mean Matthews correlation `0.5507561605669934`
+     - `pods_all` mean Matthews correlation `0.5524357115340137`
+     - `pods_sandwich` mean Matthews correlation `0.5502251919574714`
+     - `naive_truncation` Matthews correlation `0.5609903802347734`
+   Interpretation:
+   - `qqp` provides only a partial PODS win:
+     - `pods_sandwich` roughly matches `full`, but still selects depth `12`
+     - `pods_all` selects depth `8` consistently, but loses quality
+     - `naive_truncation` is slightly stronger than both PODS variants on final accuracy
+   - `qnli` is the weakest new-task PODS result:
+     - all three main variants select full depth `12`
+     - this leaves no meaningful shallower deployment outcome under the current selection policy
+   - `cola` is the most positive new-task result, but still mixed:
+     - `pods_all` slightly exceeds `full` while selecting depth `10`
+     - `naive_truncation` remains strongest on final Matthews correlation
+
+Milestone 4 result: PASS
+
 ### Residual Caveats
 
 1. Milestone 2 was accepted by explicit user override after the spec was updated to allow an objective-mismatch override with supporting analysis.
@@ -175,3 +276,13 @@ Milestone 3 result: PASS
 3. The benchmark component is reproducible enough for milestone validation, but wall-clock latency itself still varies slightly across reruns, so exact benchmark-metric identity should not be expected.
 4. Processed summaries and plots are generated from valid CUDA-backed runs only and should be treated as the current source of truth for this milestone pass.
 5. Milestone 3 closure here is the strict spec-minimum transformer proof, not a claim that the broader RoBERTa comparator programme is complete.
+6. Milestone 4 closure here uses the explicitly chosen BERT-first scope and should not be read as RoBERTa comparator closure.
+7. The completed Milestone 4 evidence is mixed rather than uniformly positive:
+   - `qqp` favours `pods_sandwich` over `pods_all`, but `naive_truncation` slightly exceeds both PODS variants in final accuracy
+   - `qnli` leaves all three main variants selecting full depth `12`
+   - `cola` shows `pods_all` slightly ahead of `full`, but `naive_truncation` remains strongest in final Matthews correlation
+8. Selected-depth behaviour should be interpreted honestly:
+   - `qqp:bert:pods_all` selected depth `8` for all three seeds
+   - `cola:bert:pods_all` selected depth `10` for all three seeds
+   - most other new-task main variants still selected full depth `12`
+9. Milestone 4 is therefore closed as an evidence milestone under the chosen scope, not as proof that PODS uniformly dominates the static baselines on GLUE.

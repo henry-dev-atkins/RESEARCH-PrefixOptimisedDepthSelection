@@ -103,3 +103,88 @@ Operational rule for next time:
 
 - if an agent reports a structurally suspicious result, inspect `results.json` directly before classifying the run as failed
 - use agent summaries as triage, not as final truth
+
+## 2026-04-28
+
+### Cached Hugging Face warning traffic can be noisy without invalidating a run
+
+Observed behaviour:
+
+- multiple GLUE runs emitted:
+  - `[WinError 10013] An attempt was made to access a socket in a way forbidden by its access permissions`
+- accepted runs still completed successfully once the datasets were resolved from local cache
+
+What this means:
+
+- this warning alone does not distinguish between a fatal data-access problem and a harmless cache-backed fallback
+- run validity still depends on the written artefacts, not the warning text
+
+Operational rule for next time:
+
+- do not reject a run purely because this warning appears
+- inspect `results.json` and processed outputs before classifying the run as failed
+
+### Milestone closure must still validate experiment structure directly
+
+Observed behaviour:
+
+- the remaining Milestone 4 closure work was documentation-heavy, but the accepted experiment set still depended on direct structural validation of each completed run
+
+What this means:
+
+- a successful process exit is weaker evidence than a structurally valid result payload
+
+Operational rule for next time:
+
+- after any long experiment block, verify:
+  - `runtime.device_type == "cuda"`
+  - the expected task metric is present
+  - `selection_results` and `cost_results` cover the intended depths
+  - baseline-specific fields match the intended evaluation mode
+
+### Evidence-complete is not the same as claim-complete
+
+Observed behaviour:
+
+- Milestone 4 closed cleanly under the chosen BERT-first scope
+- the resulting empirical story across `qqp`, `qnli`, and `cola` remained mixed rather than uniformly positive
+
+What this means:
+
+- completing the planned evidence surface does not automatically justify a strong headline claim
+
+Operational rule for next time:
+
+- separate "the run matrix is complete" from "the hypothesis is strongly supported"
+- write the closure docs so they preserve that distinction explicitly
+
+### Selected depth matters more than training intent for the deployment story
+
+Observed behaviour:
+
+- some new-task variants trained successfully but still selected full depth `12`
+- the practical deployment value was strongest only where the chosen prefix actually became shallower, such as `qqp:bert:pods_all` at depth `8` and `cola:bert:pods_all` at depth `10`
+
+What this means:
+
+- good final quality alone is not enough for the PODS deployment claim
+
+Operational rule for next time:
+
+- evaluate transformer results first through selected-depth behaviour, then through final quality
+- treat full-depth selection as a weaker deployment outcome even when the metric is competitive
+
+### Naive truncation must remain a first-class comparator
+
+Observed behaviour:
+
+- `naive_truncation` was competitive or stronger than PODS on multiple new GLUE tasks
+
+What this means:
+
+- future interpretation cannot assume that jointly trained prefixes dominate a simple post-hoc truncation baseline
+
+Operational rule for next time:
+
+- keep `naive_truncation` in the core comparator set for any follow-on sweep
+- avoid broad PODS claims unless the comparison against truncation is explicitly shown task by task
