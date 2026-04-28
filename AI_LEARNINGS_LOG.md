@@ -188,3 +188,40 @@ Operational rule for next time:
 
 - keep `naive_truncation` in the core comparator set for any follow-on sweep
 - avoid broad PODS claims unless the comparison against truncation is explicitly shown task by task
+
+### Processed summaries are rich enough for serious trade-off plots without touching raw runs
+
+Observed behaviour:
+
+- the one-off figure pack for review was generated entirely from `pods/results/processed/*_frontier_summary.json`
+- those summaries already exposed:
+  - per-depth selection metrics
+  - per-depth selection costs
+  - selected depths
+  - deployed final metrics and costs
+
+What this means:
+
+- most interpretation and figure work can be done from the processed layer alone
+- this keeps review work faster and avoids accidental coupling to raw-run schema details
+
+Operational rule for next time:
+
+- default to the processed summaries when building review plots, tables, or decision memos
+- only drop to raw runs if a required field is truly absent from the processed layer
+
+### Multi-seed selected-depth summaries should not be collapsed to a rounded mean depth
+
+Observed behaviour:
+
+- one temporary cost-quality plot initially failed because a multi-seed variant had selected depths that averaged to a depth not actually present in the aggregated final-cost keys
+
+What this means:
+
+- selected depth is a discrete observed value, not a continuous plotting coordinate
+- a rounded arithmetic mean can invent a non-existent deployment point
+
+Operational rule for next time:
+
+- use an actually observed selected depth for representative deployed-cost views
+- if multiple selected depths exist, prefer a mode or explicitly show the full set rather than rounding

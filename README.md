@@ -52,6 +52,7 @@ For environment workflow notes and dependency update policy, see [pods/docs/deve
 
 Current work tracking docs:
 
+- [Session 5 handover](pods/docs/session5_handover_2026-04-28.md)
 - [Session 4 handover](pods/docs/session4_handover_2026-04-28.md)
 - [Session 3 handover](pods/docs/session3_handover_2026-04-27.md)
 - [Session 2 handover](pods/docs/session2_handover_2026-04-26.md)
@@ -65,6 +66,7 @@ Current position:
 - the chosen BERT-first Milestone 4 sweep is now complete
 - the six-task BERT main matrix is complete across `sst2`, `mrpc`, `rte`, `qqp`, `qnli`, and `cola`
 - the `qqp`, `qnli`, and `cola` baseline block is complete
+- a one-off local figure pack now exists under `temp/analysis_figures/` for result review, including frontier, trade-off, and Pareto-style plots
 - the current next-step decision is whether to move into paper assembly from the BERT-first evidence base or reopen the deferred RoBERTa comparator work
 
 
