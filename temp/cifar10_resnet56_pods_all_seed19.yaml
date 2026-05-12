@@ -1,0 +1,58 @@
+experiment:
+  name: cifar10_resnet56_pods_all_seed19
+  seed: 19
+  output_dir: pods/results/raw/cifar10_resnet56_pods_all_seed19
+  tags: [session1, cifar10, resnet56, pods, all, seed19]
+
+task:
+  type: image_classification
+  dataset: cifar10
+  num_classes: 10
+  selection_fraction: 0.1
+
+model:
+  family: resnet
+  variant: resnet56
+  input_shape: [3, 32, 32]
+  candidate_depths: [1, 2, 3]
+  head_type: linear
+  norm_type: groupnorm
+  groupnorm_groups: 8
+
+training:
+  mode: all
+  epochs: 5
+  batch_size: 128
+  optimiser: sgd
+  learning_rate: 0.1
+  weight_decay: 0.0005
+  grad_clip: 1.0
+  mixed_precision: none
+  weight_power: 1.0
+  num_middle_depths: 0
+  scheduler: cosine
+  scheduler_t_max: 5
+  label_smoothing: 0.0
+  momentum: 0.9
+  num_workers: 2
+  pin_memory: true
+  persistent_workers: true
+  drop_last: true
+
+selection:
+  quality_metric: accuracy
+  cost_metric: latency_ms_p50
+  relative_accuracy_drop: 0.01
+  absolute_accuracy_target: null
+
+benchmark:
+  batch_sizes: [1, 32]
+  selection_batch_size: 1
+  warmup_steps: 10
+  timed_steps: 30
+
+baseline:
+  kind: pods
+  target_depth: null
+  head_fit_epochs: 3
+  head_fit_learning_rate: 0.001

@@ -1,0 +1,78 @@
+{
+  "overview_rows": [
+    {
+      "dataset": "mnist",
+      "best_pods": "pods_sandwich",
+      "delta_vs_full": NaN,
+      "delta_vs_naive": NaN,
+      "selected_depth": "d1",
+      "verdict": "loss"
+    },
+    {
+      "dataset": "cifar10",
+      "best_pods": "pods_sandwich",
+      "delta_vs_full": 0.012500000000000067,
+      "delta_vs_naive": 0.029866666666666708,
+      "selected_depth": "d2,d3",
+      "verdict": "clear win"
+    },
+    {
+      "dataset": "cifar100",
+      "best_pods": "pods_all",
+      "delta_vs_full": -0.002999999999999975,
+      "delta_vs_naive": -0.011499999999999982,
+      "selected_depth": "d3",
+      "verdict": "mixed"
+    },
+    {
+      "dataset": "sst2",
+      "best_pods": "pods_sandwich",
+      "delta_vs_full": -0.03937308868501521,
+      "delta_vs_naive": -0.0210244648318042,
+      "selected_depth": "d6,d8,d10",
+      "verdict": "mixed"
+    },
+    {
+      "dataset": "mrpc",
+      "best_pods": "pods_sandwich",
+      "delta_vs_full": 0.004901960784313708,
+      "delta_vs_naive": -0.0008169934640522847,
+      "selected_depth": "d12",
+      "verdict": "mixed"
+    },
+    {
+      "dataset": "rte",
+      "best_pods": "pods_sandwich",
+      "delta_vs_full": 0.016847172081829065,
+      "delta_vs_naive": 0.002406738868832692,
+      "selected_depth": "d6,d12",
+      "verdict": "clear win"
+    },
+    {
+      "dataset": "qqp",
+      "best_pods": "pods_sandwich",
+      "delta_vs_full": 0.00023909638057550975,
+      "delta_vs_naive": -0.0008492043861818566,
+      "selected_depth": "d12",
+      "verdict": "mixed"
+    },
+    {
+      "dataset": "qnli",
+      "best_pods": "pods_sandwich",
+      "delta_vs_full": -0.0006711818902922495,
+      "delta_vs_naive": 0.0023186283482824477,
+      "selected_depth": "d12",
+      "verdict": "loss"
+    },
+    {
+      "dataset": "cola",
+      "best_pods": "pods_all",
+      "delta_vs_full": 0.0016795509670203268,
+      "delta_vs_naive": -0.008554668700759716,
+      "selected_depth": "d10",
+      "verdict": "partial win"
+    }
+  ],
+  "generated_at": "local_run",
+  "output_root": "temp\\analysis_figures"
+}
