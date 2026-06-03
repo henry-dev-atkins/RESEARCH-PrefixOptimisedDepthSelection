@@ -1,0 +1,14 @@
+{
+  "overview_rows": [
+    {
+      "dataset": "stsb",
+      "best_pods": "pods_all",
+      "delta_vs_full": -0.010000000000000009,
+      "delta_vs_naive": NaN,
+      "selected_depth": "d8",
+      "verdict": "loss"
+    }
+  ],
+  "generated_at": "repo_run",
+  "output_root": "C:\\Users\\Henry\\PersonalProjects\\PODS - PrefixOptimisedDepthSelection\\temp\\spec_impl_verify_2\\review_figures"
+}

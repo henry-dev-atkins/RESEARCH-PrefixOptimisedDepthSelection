@@ -1,0 +1,70 @@
+experiment:
+  name: stsb_bert_base_naive_truncation_seed11
+  seed: 11
+  output_dir: pods/results/raw/stsb_bert_base_naive_truncation_seed11
+  tags:
+  - glue
+  - stsb
+  - bert-base
+  - naive-truncation
+task:
+  type: text_regression
+  dataset: stsb
+  num_classes: 1
+  selection_fraction: 0.1
+  text_fields:
+  - sentence1
+  - sentence2
+  max_length: 128
+  metric_name: spearman_correlation
+model:
+  family: bert
+  pretrained_model_name: bert-base-uncased
+  candidate_depths:
+  - 2
+  - 4
+  - 6
+  - 8
+  - 10
+  - 12
+  head_type: bert_cls
+  norm_type: none
+  dropout: 0.1
+training:
+  mode: full_only
+  epochs: 3
+  batch_size: 16
+  optimiser: adamw
+  learning_rate: 2.0e-05
+  weight_decay: 0.01
+  grad_clip: 1.0
+  mixed_precision: bf16
+  weight_power: 1.0
+  num_middle_depths: 0
+  scheduler: cosine
+  scheduler_t_max: 3
+  label_smoothing: 0.0
+  momentum: 0.9
+  num_workers: 0
+  pin_memory: true
+  persistent_workers: false
+  drop_last: false
+  gradient_accumulation_steps: 2
+  warmup_ratio: 0.1
+selection:
+  quality_metric: spearman_correlation
+  cost_metric: latency_ms_p50
+  relative_accuracy_drop: 0.01
+  absolute_accuracy_target: null
+benchmark:
+  batch_sizes:
+  - 1
+  - 8
+  selection_batch_size: 1
+  warmup_steps: 10
+  timed_steps: 30
+baseline:
+  kind: naive_truncation
+  target_depth: null
+  head_fit_epochs: 3
+  head_fit_learning_rate: 0.001

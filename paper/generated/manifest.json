@@ -1,0 +1,16 @@
+{
+  "datasets": [
+    "cifar10",
+    "cifar100",
+    "cola",
+    "mnist",
+    "mnli",
+    "mrpc",
+    "qnli",
+    "qqp",
+    "rte",
+    "sst2",
+    "stsb"
+  ],
+  "num_variants": 68
+}

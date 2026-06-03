@@ -6,11 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import torch
-import torch.nn.functional as F
 from torch import optim
 from torch.utils.data import DataLoader
 
-from pods.config.schema import PodsConfig
+from pods.config.schema import PodsConfig, load_config
 from pods.data.batches import move_batch_to_device
 from pods.data.datasets import build_image_dataset, build_text_datasets
 from pods.data.splits import DatasetSplit, make_split_indices
@@ -22,6 +21,7 @@ from pods.experiments.reporting import build_runtime_metadata, save_raw_run, wri
 from pods.models.interfaces import PrefixCapableModel
 from pods.models.registry import build_model
 from pods.training.loops import train_multidepth_model
+from pods.training.losses import distillation_loss, supervised_loss
 from pods.utils.seeds import seed_everything
 
 
@@ -49,16 +49,17 @@ def require_supported_runtime(config: PodsConfig, device: torch.device) -> None:
 
 def make_data_loaders(config: PodsConfig):
     collate_fn = None
+    test_loader_secondary = None
     if config.task.type == "image_classification":
         dataset_train_full = build_image_dataset(config.task.dataset, train=True)
         dataset_selection_full = build_image_dataset(config.task.dataset, train=True, use_eval_transform=True)
-        dataset_test = build_image_dataset(config.task.dataset, train=False)
+        dataset_test_primary = build_image_dataset(config.task.dataset, train=False)
         indices = make_split_indices(len(dataset_train_full), selection_fraction=config.task.selection_fraction, seed=config.experiment.seed)
         split = DatasetSplit(
             train=torch.utils.data.Subset(dataset_train_full, indices.train_indices),
             selection_val=torch.utils.data.Subset(dataset_selection_full, indices.selection_indices),
         )
-    elif config.task.type == "text_classification":
+    elif config.task.type in {"text_classification", "text_regression"}:
         try:
             from transformers import AutoTokenizer, DataCollatorWithPadding
         except ImportError as exc:
@@ -69,7 +70,8 @@ def make_data_loaders(config: PodsConfig):
             train=torch.utils.data.Subset(datasets["train"], indices.train_indices),
             selection_val=torch.utils.data.Subset(datasets["train"], indices.selection_indices),
         )
-        dataset_test = datasets["validation"]
+        dataset_test_primary = datasets["validation_primary"]
+        dataset_test_secondary = datasets.get("validation_secondary")
         tokenizer = AutoTokenizer.from_pretrained(config.model.pretrained_model_name)
         collate_fn = DataCollatorWithPadding(tokenizer=tokenizer)
     else:
@@ -95,7 +97,7 @@ def make_data_loaders(config: PodsConfig):
         collate_fn=collate_fn,
     )
     test_loader = DataLoader(
-        dataset_test,
+        dataset_test_primary,
         batch_size=config.training.batch_size,
         shuffle=False,
         num_workers=config.training.num_workers,
@@ -103,7 +105,17 @@ def make_data_loaders(config: PodsConfig):
         persistent_workers=config.training.persistent_workers,
         collate_fn=collate_fn,
     )
-    return split, train_loader, val_loader, test_loader
+    if test_loader_secondary is None and "dataset_test_secondary" in locals() and dataset_test_secondary is not None:
+        test_loader_secondary = DataLoader(
+            dataset_test_secondary,
+            batch_size=config.training.batch_size,
+            shuffle=False,
+            num_workers=config.training.num_workers,
+            pin_memory=config.training.pin_memory,
+            persistent_workers=config.training.persistent_workers,
+            collate_fn=collate_fn,
+        )
+    return split, train_loader, val_loader, test_loader, test_loader_secondary
 
 
 def build_benchmark_batches(dataset, batch_sizes: tuple[int, ...], collate_fn=None) -> dict[int, Any]:
@@ -214,6 +226,7 @@ def fit_posthoc_head(
     device: torch.device,
     epochs: int,
     learning_rate: float,
+    task_type: str,
 ) -> None:
     for parameter in model.parameters():
         parameter.requires_grad = False
@@ -230,7 +243,7 @@ def fit_posthoc_head(
             with torch.no_grad():
                 features = model.forward_features(inputs, depth)
             logits = head(features)
-            loss = F.cross_entropy(logits, labels)
+            loss = supervised_loss(logits, labels, task_type=task_type)
             optimiser.zero_grad(set_to_none=True)
             loss.backward()
             optimiser.step()
@@ -239,39 +252,182 @@ def fit_posthoc_head(
         parameter.requires_grad = True
 
 
+def _load_teacher_config(teacher_dir: Path) -> PodsConfig:
+    config_path = teacher_dir / "config.snapshot.yaml"
+    if not config_path.exists():
+        raise ValueError(f"Teacher run is missing config.snapshot.yaml: {config_path}")
+    return load_config(config_path)
+
+
+def _load_checkpoint_with_allowed_missing(
+    model: torch.nn.Module,
+    state_dict: dict[str, Any],
+    *,
+    allowed_missing_keys: tuple[str, ...] = (),
+) -> None:
+    incompatible = model.load_state_dict(state_dict, strict=False)
+    disallowed_missing = sorted(key for key in incompatible.missing_keys if key not in allowed_missing_keys)
+    unexpected = sorted(incompatible.unexpected_keys)
+    if disallowed_missing or unexpected:
+        message_parts = []
+        if disallowed_missing:
+            message_parts.append(f"missing keys: {disallowed_missing}")
+        if unexpected:
+            message_parts.append(f"unexpected keys: {unexpected}")
+        raise RuntimeError("Checkpoint state_dict is incompatible: " + "; ".join(message_parts))
+
+
+def load_teacher_model(config: PodsConfig, device: torch.device) -> PrefixCapableModel:
+    if config.baseline.teacher_output_dir is None:
+        raise ValueError("distilled_shallow requires baseline.teacher_output_dir")
+    teacher_dir = Path(config.baseline.teacher_output_dir)
+    state_path = teacher_dir / "model.pt"
+    if not state_path.exists():
+        raise ValueError(f"Teacher checkpoint is missing: {state_path}")
+    teacher_config = _load_teacher_config(teacher_dir)
+    if teacher_config.baseline.kind != "full":
+        raise ValueError(
+            f"Teacher run must be a full baseline, got baseline.kind={teacher_config.baseline.kind!r} in {teacher_dir}"
+        )
+    if teacher_config.task.type != config.task.type or teacher_config.task.dataset != config.task.dataset:
+        raise ValueError("Teacher task does not match distilled student task")
+    if teacher_config.task.num_classes != config.task.num_classes:
+        raise ValueError("Teacher num_classes does not match distilled student task")
+    if teacher_config.model.family != config.model.family:
+        raise ValueError("Teacher backbone family does not match distilled student backbone family")
+    if teacher_config.model.pretrained_model_name != config.model.pretrained_model_name:
+        raise ValueError("Teacher pretrained model does not match distilled student backbone")
+    if teacher_config.model.candidate_depths != config.model.candidate_depths:
+        raise ValueError("Teacher candidate depths do not match distilled student candidate depths")
+    if teacher_config.experiment.seed != config.experiment.seed:
+        raise ValueError("Teacher seed does not match distilled student seed")
+
+    teacher = build_model(teacher_config, target_depth=None)
+    allowed_missing_keys: tuple[str, ...] = ()
+    if teacher_config.model.family == "bert":
+        allowed_missing_keys = (
+            "backbone.pooler.dense.weight",
+            "backbone.pooler.dense.bias",
+        )
+    _load_checkpoint_with_allowed_missing(
+        teacher,
+        torch.load(state_path, map_location=device),
+        allowed_missing_keys=allowed_missing_keys,
+    )
+    teacher = teacher.to(device)
+    teacher.eval()
+    for parameter in teacher.parameters():
+        parameter.requires_grad = False
+    return teacher
+
+
+def train_distilled_student(
+    config: PodsConfig,
+    student: PrefixCapableModel,
+    teacher: PrefixCapableModel,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    device: torch.device,
+) -> tuple[PrefixCapableModel, list[dict[str, Any]]]:
+    optimizer = build_optimizer(config, student)
+    student = student.to(device)
+    history: list[dict[str, Any]] = []
+    best_state: dict[str, Any] | None = None
+    best_score = float("-inf")
+    target_depth = config.baseline.target_depth
+    if target_depth is None:
+        raise ValueError("distilled_shallow requires baseline.target_depth")
+
+    for _ in range(config.training.epochs):
+        student.train()
+        running_loss = 0.0
+        seen_batches = 0
+        for batch in train_loader:
+            inputs, labels = move_batch_to_device(batch, device)
+            student_logits = student.forward_prefix(inputs, target_depth)
+            with torch.no_grad():
+                teacher_logits = teacher.forward_prefix(inputs, max(teacher.candidate_depths))
+            supervised = supervised_loss(student_logits, labels, task_type=config.task.type, label_smoothing=config.training.label_smoothing)
+            distilled = distillation_loss(
+                student_logits,
+                teacher_logits,
+                task_type=config.task.type,
+                temperature=config.baseline.distillation_temperature,
+            )
+            alpha = config.baseline.distillation_alpha
+            total_loss = (alpha * supervised) + ((1.0 - alpha) * distilled)
+            optimizer.zero_grad(set_to_none=True)
+            total_loss.backward()
+            if config.training.grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(student.parameters(), config.training.grad_clip)
+            optimizer.step()
+            running_loss += float(total_loss.detach().item())
+            seen_batches += 1
+
+        val_results = evaluate_all_prefixes(
+            student,
+            val_loader,
+            student.candidate_depths,
+            device,
+            metric_name=config.task.metric_name,
+            bootstrap_samples=config.experiment.quality_bootstrap_samples,
+            confidence_level=config.experiment.confidence_level,
+            task_type=config.task.type,
+        )
+        score = val_results[target_depth].metric_value
+        if score > best_score:
+            best_score = score
+            best_state = {key: value.detach().cpu().clone() for key, value in student.state_dict().items()}
+        history.append({"train_loss": running_loss / max(seen_batches, 1), "val_metrics_by_depth": {depth: asdict(result) for depth, result in val_results.items()}})
+
+    if best_state is None:
+        raise RuntimeError("Distillation produced no checkpoint state")
+    student.load_state_dict(best_state)
+    return student, history
+
+
 def run_workflow(
     config: PodsConfig,
     model: PrefixCapableModel,
     train_loader: DataLoader,
     val_loader: DataLoader,
     test_loader: DataLoader,
+    test_loader_secondary: DataLoader | None,
     selection_val_dataset,
     device: torch.device,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     benchmark_batches = build_benchmark_batches(selection_val_dataset, config.benchmark.batch_sizes, collate_fn=val_loader.collate_fn)
-    optimizer = build_optimizer(config, model)
-    rng = random.Random(config.experiment.seed)
-    model, history = train_multidepth_model(
-        model=model,
-        train_loader=train_loader,
-        val_loader=val_loader,
-        optimizer=optimizer,
-        epochs=config.training.epochs,
-        mode=config.training.mode,
-        num_middle_depths=config.training.num_middle_depths,
-        weight_power=config.training.weight_power,
-        device=device,
-        mixed_precision=config.training.mixed_precision,
-        label_smoothing=config.training.label_smoothing,
-        scheduler_name=config.training.scheduler,
-        scheduler_t_max=config.training.scheduler_t_max,
-        scheduler_milestones=config.training.scheduler_milestones,
-        scheduler_gamma=config.training.scheduler_gamma,
-        grad_clip=config.training.grad_clip,
-        gradient_accumulation_steps=config.training.gradient_accumulation_steps,
-        rng=rng,
-        progressive_middle_depths=config.training.progressive_middle_depths,
-    )
+    if config.baseline.kind == "distilled_shallow":
+        teacher = load_teacher_model(config, device)
+        model, distilled_history = train_distilled_student(config, model, teacher, train_loader, val_loader, device)
+        history = distilled_history
+    else:
+        optimizer = build_optimizer(config, model)
+        rng = random.Random(config.experiment.seed)
+        model, loop_history = train_multidepth_model(
+            model=model,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            optimizer=optimizer,
+            epochs=config.training.epochs,
+            mode=config.training.mode,
+            num_middle_depths=config.training.num_middle_depths,
+            weight_power=config.training.weight_power,
+            device=device,
+            mixed_precision=config.training.mixed_precision,
+            label_smoothing=config.training.label_smoothing,
+            scheduler_name=config.training.scheduler,
+            scheduler_t_max=config.training.scheduler_t_max,
+            scheduler_milestones=config.training.scheduler_milestones,
+            scheduler_gamma=config.training.scheduler_gamma,
+            grad_clip=config.training.grad_clip,
+            gradient_accumulation_steps=config.training.gradient_accumulation_steps,
+            rng=rng,
+            progressive_middle_depths=config.training.progressive_middle_depths,
+            task_type=config.task.type,
+            metric_name=config.task.metric_name,
+        )
+        history = [{"train_loss": epoch.train_loss, "val_metrics_by_depth": epoch.val_metrics_by_depth} for epoch in loop_history]
 
     selection_spec = SelectionSpec(
         quality_metric=config.selection.quality_metric,
@@ -290,6 +446,7 @@ def run_workflow(
                 device=device,
                 epochs=config.baseline.head_fit_epochs,
                 learning_rate=config.baseline.head_fit_learning_rate,
+                task_type=config.task.type,
             )
 
     candidate_depths = (
@@ -305,6 +462,7 @@ def run_workflow(
         metric_name=config.task.metric_name,
         bootstrap_samples=config.experiment.quality_bootstrap_samples,
         confidence_level=config.experiment.confidence_level,
+        task_type=config.task.type,
     )
     cost_results_by_batch = benchmark_prefixes(
         model=model,
@@ -334,7 +492,20 @@ def run_workflow(
         metric_name=config.task.metric_name,
         bootstrap_samples=config.experiment.quality_bootstrap_samples,
         confidence_level=config.experiment.confidence_level,
+        task_type=config.task.type,
     )
+    final_result_secondary = None
+    if test_loader_secondary is not None:
+        final_result_secondary = evaluate_classifier(
+            selected_prefix,
+            test_loader_secondary,
+            device,
+            depth=selected_depth,
+            metric_name=config.task.metric_name,
+            bootstrap_samples=config.experiment.quality_bootstrap_samples,
+            confidence_level=config.experiment.confidence_level,
+            task_type=config.task.type,
+        )
     final_cost_by_batch = {
         batch_size: benchmark_prefixes(
             model=model,
@@ -351,10 +522,7 @@ def run_workflow(
     }
 
     results = {
-        "history": [
-            {"train_loss": epoch.train_loss, "val_metrics_by_depth": epoch.val_metrics_by_depth}
-            for epoch in history
-        ],
+        "history": history,
         "selection_results": {depth: asdict(result) for depth, result in selection_results.items()},
         "cost_results": {
             depth: {batch_size: asdict(result) for batch_size, result in batch_results.items()}
@@ -374,6 +542,8 @@ def run_workflow(
         "runtime": build_runtime_metadata(device),
         "resolved_candidate_depths": list(candidate_depths),
     }
+    if final_result_secondary is not None:
+        results["final_results_secondary"] = {selected_depth: asdict(final_result_secondary)}
     return results, model.state_dict(), selected_prefix.state_dict()
 
 
@@ -382,8 +552,8 @@ def run_experiment(config: PodsConfig) -> dict[str, Any]:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     require_supported_runtime(config, device)
 
-    split, train_loader, val_loader, test_loader = make_data_loaders(config)
-    target_depth = config.baseline.target_depth if config.baseline.kind == "shallow_independent" else None
+    split, train_loader, val_loader, test_loader, test_loader_secondary = make_data_loaders(config)
+    target_depth = config.baseline.target_depth if config.baseline.kind in {"shallow_independent", "distilled_shallow"} else None
     model = build_model(config, target_depth=target_depth)
 
     results, model_state, selected_prefix_state = run_workflow(
@@ -392,6 +562,7 @@ def run_experiment(config: PodsConfig) -> dict[str, Any]:
         train_loader=train_loader,
         val_loader=val_loader,
         test_loader=test_loader,
+        test_loader_secondary=test_loader_secondary,
         selection_val_dataset=split.selection_val,
         device=device,
     )

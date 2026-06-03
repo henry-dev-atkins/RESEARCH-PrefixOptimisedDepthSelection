@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import pytest
 import torch
+from torch import nn
 from torch.utils.data import TensorDataset
+import yaml
 
 from pods.config.schema import (
     BaselineConfig,
@@ -14,7 +17,13 @@ from pods.config.schema import (
     TrainingConfig,
 )
 from pods.models.mlp import PodsMLP
-from pods.experiments.runner import build_benchmark_batches, make_selection_cost_results, run_workflow
+from pods.experiments.runner import (
+    _load_checkpoint_with_allowed_missing,
+    build_benchmark_batches,
+    load_teacher_model,
+    make_selection_cost_results,
+    run_workflow,
+)
 from pods.eval.summarise import summarise_results
 
 
@@ -291,3 +300,123 @@ def test_summarise_results_separates_shallow_targets(tmp_path) -> None:
     assert "cifar10:resnet:shallow_independent_d2" in summary
     assert summary["cifar10:resnet:shallow_independent_d1"]["final_accuracy_mean"] == 0.61
     assert summary["cifar10:resnet:shallow_independent_d2"]["final_accuracy_mean"] == 0.74
+
+
+def test_load_teacher_model_rejects_mismatched_teacher_metadata(tmp_path) -> None:
+    teacher_dir = tmp_path / "teacher"
+    teacher_dir.mkdir()
+    torch.save({}, teacher_dir / "model.pt")
+    (teacher_dir / "config.snapshot.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "experiment": {"name": "sst2_roberta_base_full", "seed": 7, "output_dir": str(teacher_dir)},
+                "task": {
+                    "type": "text_classification",
+                    "dataset": "sst2",
+                    "num_classes": 2,
+                    "selection_fraction": 0.1,
+                    "text_fields": ["sentence"],
+                    "max_length": 128,
+                    "metric_name": "accuracy",
+                },
+                "model": {
+                    "family": "roberta",
+                    "pretrained_model_name": "roberta-base",
+                    "candidate_depths": [2, 4, 6, 8, 10, 12],
+                    "head_type": "roberta_cls",
+                    "norm_type": "none",
+                    "dropout": 0.1,
+                },
+                "training": {
+                    "mode": "full_only",
+                    "epochs": 1,
+                    "batch_size": 8,
+                    "optimiser": "adamw",
+                    "learning_rate": 0.00002,
+                    "weight_decay": 0.01,
+                    "grad_clip": 1.0,
+                    "mixed_precision": "none",
+                    "weight_power": 1.0,
+                    "num_middle_depths": 0,
+                    "scheduler": "none",
+                },
+                "selection": {
+                    "quality_metric": "accuracy",
+                    "cost_metric": "latency_ms_p50",
+                    "relative_accuracy_drop": 0.01,
+                    "absolute_accuracy_target": None,
+                },
+                "benchmark": {
+                    "batch_sizes": [1, 8],
+                    "selection_batch_size": 1,
+                    "warmup_steps": 1,
+                    "timed_steps": 1,
+                },
+                "baseline": {"kind": "full", "target_depth": None},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    config = PodsConfig(
+        experiment=ExperimentConfig(name="sst2_bert_base_distilled_shallow_d2", seed=7, output_dir=str(tmp_path / "student")),
+        task=TaskConfig(
+            type="text_classification",
+            dataset="sst2",
+            num_classes=2,
+            selection_fraction=0.1,
+            text_fields=("sentence",),
+            max_length=128,
+            metric_name="accuracy",
+        ),
+        model=ModelConfig(
+            family="bert",
+            candidate_depths=(2, 4, 6, 8, 10, 12),
+            head_type="bert_cls",
+            norm_type="none",
+            pretrained_model_name="bert-base-uncased",
+            dropout=0.1,
+        ),
+        training=TrainingConfig(
+            mode="full_only",
+            epochs=1,
+            batch_size=8,
+            optimiser="adamw",
+            learning_rate=0.001,
+            weight_decay=0.0,
+            grad_clip=1.0,
+            mixed_precision="none",
+            weight_power=1.0,
+            num_middle_depths=0,
+            scheduler="none",
+        ),
+        selection=SelectionConfig(
+            quality_metric="accuracy",
+            cost_metric="latency_ms_p50",
+            target_kind="relative",
+            relative_accuracy_drop=0.01,
+            absolute_accuracy_target=None,
+        ),
+        benchmark=BenchmarkConfig(batch_sizes=(1, 8), selection_batch_size=1, warmup_steps=1, timed_steps=1),
+        baseline=BaselineConfig(kind="distilled_shallow", target_depth=2, teacher_output_dir=str(teacher_dir)),
+    )
+
+    with pytest.raises(ValueError, match="Teacher backbone family does not match"):
+        load_teacher_model(config, torch.device("cpu"))
+
+
+def test_load_checkpoint_with_allowed_missing_accepts_only_whitelisted_gap() -> None:
+    model = nn.Sequential(nn.Linear(2, 2), nn.Linear(2, 1))
+    state_dict = model.state_dict()
+    partial = {key: value for key, value in state_dict.items() if key != "1.bias"}
+
+    _load_checkpoint_with_allowed_missing(model, partial, allowed_missing_keys=("1.bias",))
+
+
+def test_load_checkpoint_with_allowed_missing_rejects_other_gaps() -> None:
+    model = nn.Sequential(nn.Linear(2, 2), nn.Linear(2, 1))
+    state_dict = model.state_dict()
+    partial = {key: value for key, value in state_dict.items() if key != "1.bias"}
+
+    with pytest.raises(RuntimeError, match="Checkpoint state_dict is incompatible"):
+        _load_checkpoint_with_allowed_missing(model, partial, allowed_missing_keys=())

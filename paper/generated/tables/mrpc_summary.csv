@@ -1,0 +1,8 @@
+model,variant,selected_depths,final_metric_mean
+bert,full,12,0.8154
+bert,layerdrop,8,0.7990
+bert,naive_truncation,12,0.8211
+bert,pods_all,8,10,0.8121
+bert,pods_sandwich,12,0.8203
+bert,shallow_independent_d2,2,0.6936
+bert,shallow_independent_d4,4,0.7598

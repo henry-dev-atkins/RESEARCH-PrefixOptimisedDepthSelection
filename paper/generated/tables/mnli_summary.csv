@@ -1,0 +1,3 @@
+model,variant,selected_depths,final_metric_mean
+bert,full,12,0.8430
+bert,pods_all,10,0.8349

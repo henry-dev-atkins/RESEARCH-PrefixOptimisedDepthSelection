@@ -1,6 +1,25 @@
 ## Milestone Validation
 
-This document records the current validation state of Milestones 1, 2, 3, and 4 against `SPEC.md`.
+This document records the current validated state of Milestones 1, 2, 3, and 4 against `SPEC.md`.
+
+## Current Transition Note
+
+The repo now also contains local framework expansion work for:
+
+1. `stsb`
+2. `mnli`
+3. `text_regression`
+4. `progressive_shrinking`
+5. `distilled_shallow`
+6. tracked paper-table export
+
+That work is not yet counted as a closed milestone in this document.
+
+Why:
+
+1. the new framework paths have been directly verified and syntax-checked locally, but they have not yet been closed through the full experiment matrix
+2. the accepted milestone record below still reflects the last evidence-complete validated state
+3. this avoids silently overstating completion while the repo transitions from the BERT-first scope toward the full-spec target
 
 ### Milestone 1: Machinery
 

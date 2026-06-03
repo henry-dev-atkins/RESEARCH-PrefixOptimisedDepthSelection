@@ -5,7 +5,10 @@ import random
 from typing import Callable
 
 
-def accuracy_score(labels: list[int], predictions: list[int]) -> float:
+Numeric = int | float
+
+
+def accuracy_score(labels: list[Numeric], predictions: list[Numeric]) -> float:
     if len(labels) != len(predictions):
         raise ValueError("labels and predictions must have the same length")
     if not labels:
@@ -14,7 +17,7 @@ def accuracy_score(labels: list[int], predictions: list[int]) -> float:
     return correct / len(labels)
 
 
-def matthews_correlation(labels: list[int], predictions: list[int]) -> float:
+def matthews_correlation(labels: list[Numeric], predictions: list[Numeric]) -> float:
     if len(labels) != len(predictions):
         raise ValueError("labels and predictions must have the same length")
     if not labels:
@@ -37,22 +40,73 @@ def matthews_correlation(labels: list[int], predictions: list[int]) -> float:
     return numerator / denominator
 
 
-def metric_fn(metric_name: str) -> Callable[[list[int], list[int]], float]:
+def _mean(values: list[float]) -> float:
+    return sum(values) / len(values)
+
+
+def pearson_correlation(labels: list[Numeric], predictions: list[Numeric]) -> float:
+    if len(labels) != len(predictions):
+        raise ValueError("labels and predictions must have the same length")
+    if not labels:
+        raise ValueError("labels must be non-empty")
+    x = [float(value) for value in labels]
+    y = [float(value) for value in predictions]
+    x_mean = _mean(x)
+    y_mean = _mean(y)
+    covariance = sum((lhs - x_mean) * (rhs - y_mean) for lhs, rhs in zip(x, y))
+    x_var = sum((lhs - x_mean) ** 2 for lhs in x)
+    y_var = sum((rhs - y_mean) ** 2 for rhs in y)
+    denominator = math.sqrt(x_var * y_var)
+    if denominator == 0.0:
+        return 0.0
+    return covariance / denominator
+
+
+def _rank(values: list[float]) -> list[float]:
+    indexed = sorted(enumerate(values), key=lambda item: item[1])
+    ranks = [0.0] * len(values)
+    index = 0
+    while index < len(indexed):
+        start = index
+        value = indexed[index][1]
+        while index < len(indexed) and indexed[index][1] == value:
+            index += 1
+        average_rank = (start + index - 1) / 2.0 + 1.0
+        for position in range(start, index):
+            ranks[indexed[position][0]] = average_rank
+    return ranks
+
+
+def spearman_correlation(labels: list[Numeric], predictions: list[Numeric]) -> float:
+    if len(labels) != len(predictions):
+        raise ValueError("labels and predictions must have the same length")
+    if not labels:
+        raise ValueError("labels must be non-empty")
+    label_ranks = _rank([float(value) for value in labels])
+    prediction_ranks = _rank([float(value) for value in predictions])
+    return pearson_correlation(label_ranks, prediction_ranks)
+
+
+def metric_fn(metric_name: str) -> Callable[[list[Numeric], list[Numeric]], float]:
     if metric_name == "accuracy":
         return accuracy_score
     if metric_name == "matthews_correlation":
         return matthews_correlation
+    if metric_name == "pearson_correlation":
+        return pearson_correlation
+    if metric_name == "spearman_correlation":
+        return spearman_correlation
     raise ValueError(f"Unsupported metric_name: {metric_name}")
 
 
-def compute_metric(metric_name: str, labels: list[int], predictions: list[int]) -> float:
+def compute_metric(metric_name: str, labels: list[Numeric], predictions: list[Numeric]) -> float:
     return metric_fn(metric_name)(labels, predictions)
 
 
 def bootstrap_confidence_interval(
     metric_name: str,
-    labels: list[int],
-    predictions: list[int],
+    labels: list[Numeric],
+    predictions: list[Numeric],
     num_samples: int,
     confidence_level: float,
     seed: int = 0,

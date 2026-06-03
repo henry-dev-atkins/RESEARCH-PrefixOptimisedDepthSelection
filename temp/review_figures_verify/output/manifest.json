@@ -1,0 +1,54 @@
+{
+  "overview_rows": [
+    {
+      "dataset": "sst2",
+      "best_pods": "pods_all",
+      "delta_vs_full": 0.0,
+      "delta_vs_naive": -0.0050000000000000044,
+      "selected_depth": "d8",
+      "verdict": "partial win"
+    },
+    {
+      "dataset": "mrpc",
+      "best_pods": "pods_all",
+      "delta_vs_full": 0.0,
+      "delta_vs_naive": -0.0050000000000000044,
+      "selected_depth": "d8",
+      "verdict": "partial win"
+    },
+    {
+      "dataset": "rte",
+      "best_pods": "pods_all",
+      "delta_vs_full": 0.0,
+      "delta_vs_naive": -0.0050000000000000044,
+      "selected_depth": "d8",
+      "verdict": "partial win"
+    },
+    {
+      "dataset": "qqp",
+      "best_pods": "pods_all",
+      "delta_vs_full": 0.0,
+      "delta_vs_naive": -0.0050000000000000044,
+      "selected_depth": "d8",
+      "verdict": "partial win"
+    },
+    {
+      "dataset": "qnli",
+      "best_pods": "pods_all",
+      "delta_vs_full": 0.0,
+      "delta_vs_naive": -0.0050000000000000044,
+      "selected_depth": "d8",
+      "verdict": "partial win"
+    },
+    {
+      "dataset": "cola",
+      "best_pods": "pods_all",
+      "delta_vs_full": 0.0,
+      "delta_vs_naive": -0.0050000000000000044,
+      "selected_depth": "d8",
+      "verdict": "partial win"
+    }
+  ],
+  "generated_at": "repo_run",
+  "output_root": "temp\\review_figures_verify\\output"
+}

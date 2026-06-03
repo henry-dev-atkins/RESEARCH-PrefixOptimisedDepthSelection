@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import torch
 import torch.nn.functional as F
@@ -17,12 +17,48 @@ from pods.models.interfaces import PrefixCapableModel
 class PrefixQualityResult:
     depth: int
     loss: float
-    accuracy: float
+    accuracy: float | None
     metric_name: str
     metric_value: float
     metric_ci_low: float | None
     metric_ci_high: float | None
     num_examples: int
+    aux_metrics: dict[str, float] = field(default_factory=dict)
+
+
+def _loss_for_task(logits: torch.Tensor, labels: torch.Tensor, task_type: str) -> torch.Tensor:
+    if task_type in {"image_classification", "text_classification"}:
+        return F.cross_entropy(logits, labels.long(), reduction="sum")
+    if task_type == "text_regression":
+        return F.mse_loss(logits.reshape(-1), labels.reshape(-1).to(logits.dtype), reduction="sum")
+    raise ValueError(f"Unsupported task_type: {task_type}")
+
+
+def _prediction_payload(logits: torch.Tensor, labels: torch.Tensor, task_type: str) -> tuple[list[int | float], list[int | float], float | None]:
+    if task_type in {"image_classification", "text_classification"}:
+        predictions = logits.argmax(dim=1)
+        labels_list = [int(value) for value in labels.cpu().tolist()]
+        predictions_list = [int(value) for value in predictions.cpu().tolist()]
+        accuracy = sum(1 for label, prediction in zip(labels_list, predictions_list) if label == prediction) / len(labels_list)
+        return labels_list, predictions_list, accuracy
+    if task_type == "text_regression":
+        predictions = logits.reshape(-1)
+        labels_list = [float(value) for value in labels.reshape(-1).cpu().tolist()]
+        predictions_list = [float(value) for value in predictions.cpu().tolist()]
+        return labels_list, predictions_list, None
+    raise ValueError(f"Unsupported task_type: {task_type}")
+
+
+def _aux_metrics(metric_name: str, task_type: str, labels: list[int | float], predictions: list[int | float], accuracy: float | None) -> dict[str, float]:
+    metrics = {metric_name: compute_metric(metric_name, labels, predictions)}
+    if task_type in {"image_classification", "text_classification"} and accuracy is not None:
+        metrics["accuracy"] = accuracy
+        if metric_name != "matthews_correlation" and set(labels).issubset({0, 1}) and set(predictions).issubset({0, 1}):
+            metrics["matthews_correlation"] = compute_metric("matthews_correlation", labels, predictions)
+    if task_type == "text_regression":
+        metrics["pearson_correlation"] = compute_metric("pearson_correlation", labels, predictions)
+        metrics["spearman_correlation"] = compute_metric("spearman_correlation", labels, predictions)
+    return metrics
 
 
 @torch.no_grad()
@@ -34,6 +70,7 @@ def evaluate_all_prefixes(
     metric_name: str = "accuracy",
     bootstrap_samples: int = 0,
     confidence_level: float = 0.95,
+    task_type: str = "image_classification",
 ) -> dict[int, PrefixQualityResult]:
     model = model.to(device)
     model.eval()
@@ -48,11 +85,12 @@ def evaluate_all_prefixes(
         inputs, labels = move_batch_to_device(batch, device)
         logits_by_depth = model.forward_depths(inputs, candidate_depths)
         for depth, logits in logits_by_depth.items():
-            predictions = logits.argmax(dim=1)
-            loss_sums[depth] += float(F.cross_entropy(logits, labels, reduction="sum").item())
-            correct[depth] += int((predictions == labels).sum().item())
-            predictions_by_depth[depth].extend(int(value) for value in predictions.cpu().tolist())
-            labels_by_depth[depth].extend(int(value) for value in labels.cpu().tolist())
+            loss_sums[depth] += float(_loss_for_task(logits, labels, task_type).item())
+            labels_list, predictions_list, batch_accuracy = _prediction_payload(logits, labels, task_type)
+            labels_by_depth[depth].extend(labels_list)
+            predictions_by_depth[depth].extend(predictions_list)
+            if batch_accuracy is not None:
+                correct[depth] += int(batch_accuracy * len(labels_list))
         total += labels.numel()
 
     if total == 0:
@@ -69,15 +107,18 @@ def evaluate_all_prefixes(
             confidence_level=confidence_level,
             seed=bootstrap_seed_base + depth,
         )
+        accuracy = correct[depth] / total if task_type in {"image_classification", "text_classification"} else None
+        aux_metrics = _aux_metrics(metric_name, task_type, labels_by_depth[depth], predictions_by_depth[depth], accuracy)
         results[depth] = PrefixQualityResult(
             depth=depth,
             loss=loss_sums[depth] / total,
-            accuracy=correct[depth] / total,
+            accuracy=accuracy,
             metric_name=metric_name,
-            metric_value=compute_metric(metric_name, labels_by_depth[depth], predictions_by_depth[depth]),
+            metric_value=aux_metrics[metric_name],
             metric_ci_low=ci_low,
             metric_ci_high=ci_high,
             num_examples=total,
+            aux_metrics=aux_metrics,
         )
     return results
 
@@ -91,24 +132,26 @@ def evaluate_classifier(
     metric_name: str = "accuracy",
     bootstrap_samples: int = 0,
     confidence_level: float = 0.95,
+    task_type: str = "image_classification",
 ) -> PrefixQualityResult:
     model = model.to(device)
     model.eval()
 
     loss_sum = 0.0
     correct = 0
-    labels_seen: list[int] = []
-    predictions_seen: list[int] = []
+    labels_seen: list[int | float] = []
+    predictions_seen: list[int | float] = []
     total = 0
 
     for batch in data_loader:
         inputs, labels = move_batch_to_device(batch, device)
         logits = model(**inputs) if isinstance(inputs, dict) else model(inputs)
-        predictions = logits.argmax(dim=1)
-        loss_sum += float(F.cross_entropy(logits, labels, reduction="sum").item())
-        correct += int((predictions == labels).sum().item())
-        predictions_seen.extend(int(value) for value in predictions.cpu().tolist())
-        labels_seen.extend(int(value) for value in labels.cpu().tolist())
+        loss_sum += float(_loss_for_task(logits, labels, task_type).item())
+        batch_labels, batch_predictions, batch_accuracy = _prediction_payload(logits, labels, task_type)
+        labels_seen.extend(batch_labels)
+        predictions_seen.extend(batch_predictions)
+        if batch_accuracy is not None:
+            correct += int(batch_accuracy * len(batch_labels))
         total += labels.numel()
 
     if total == 0:
@@ -122,13 +165,16 @@ def evaluate_classifier(
         confidence_level=confidence_level,
         seed=depth * 1013,
     )
+    accuracy = correct / total if task_type in {"image_classification", "text_classification"} else None
+    aux_metrics = _aux_metrics(metric_name, task_type, labels_seen, predictions_seen, accuracy)
     return PrefixQualityResult(
         depth=depth,
         loss=loss_sum / total,
-        accuracy=correct / total,
+        accuracy=accuracy,
         metric_name=metric_name,
-        metric_value=compute_metric(metric_name, labels_seen, predictions_seen),
+        metric_value=aux_metrics[metric_name],
         metric_ci_low=ci_low,
         metric_ci_high=ci_high,
         num_examples=total,
+        aux_metrics=aux_metrics,
     )

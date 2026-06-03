@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pods.eval.metrics import accuracy_score, bootstrap_confidence_interval, matthews_correlation
+from pods.eval.metrics import accuracy_score, bootstrap_confidence_interval, matthews_correlation, pearson_correlation, spearman_correlation
 
 
 def test_matthews_correlation_matches_perfect_binary_prediction() -> None:
@@ -22,3 +22,15 @@ def test_bootstrap_confidence_interval_returns_bounds() -> None:
     assert low is not None
     assert high is not None
     assert low <= high
+
+
+def test_pearson_correlation_matches_positive_linear_relationship() -> None:
+    labels = [0.0, 1.0, 2.0, 3.0]
+    predictions = [0.0, 2.0, 4.0, 6.0]
+    assert pearson_correlation(labels, predictions) == 1.0
+
+
+def test_spearman_correlation_matches_rank_order_relationship() -> None:
+    labels = [10.0, 20.0, 30.0, 40.0]
+    predictions = [1.0, 2.0, 3.0, 4.0]
+    assert spearman_correlation(labels, predictions) == 1.0

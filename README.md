@@ -48,6 +48,24 @@ Run the first sanity experiment with:
 uv run python -m pods.run --config pods/configs/sanity/mnist_mlp.yaml
 ```
 
+Generate the tracked review figure pack from processed summaries with:
+
+```bash
+uv run python -m pods.eval.review_figures
+```
+
+Export manuscript-ready summary tables from processed summaries with:
+
+```bash
+uv run python -m pods.eval.export_paper_assets
+```
+
+Diff the tracked GLUE config surface against completed raw runs with:
+
+```bash
+uv run python -m pods.experiments.matrix_status
+```
+
 For environment workflow notes and dependency update policy, see [pods/docs/development_environment.md](pods/docs/development_environment.md).
 
 Current work tracking docs:
@@ -58,6 +76,7 @@ Current work tracking docs:
 - [Session 2 handover](pods/docs/session2_handover_2026-04-26.md)
 - [Session 2 TODO](pods/docs/session2_todo.md)
 - [Milestone validation](pods/docs/milestone_validation.md)
+- [Paper assembly notes](pods/docs/paper_assembly_notes.md)
 - [AI learnings log](AI_LEARNINGS_LOG.md)
 
 Current position:

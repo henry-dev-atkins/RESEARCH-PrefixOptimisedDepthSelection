@@ -227,3 +227,111 @@ def test_config_accepts_cola_metric_and_selection_metric(tmp_path: Path) -> None
     config = load_config(_write_config(tmp_path, data))
     assert config.task.metric_name == "matthews_correlation"
     assert config.selection.quality_metric == "matthews_correlation"
+
+
+def test_config_accepts_stsb_text_regression(tmp_path: Path) -> None:
+    data = _base_config()
+    data["task"] = {
+        "type": "text_regression",
+        "dataset": "stsb",
+        "num_classes": 1,
+        "selection_fraction": 0.1,
+        "text_fields": ["sentence1", "sentence2"],
+        "max_length": 128,
+        "metric_name": "spearman_correlation",
+    }
+    data["model"] = {
+        "family": "bert",
+        "pretrained_model_name": "bert-base-uncased",
+        "candidate_depths": [2, 4, 6, 8, 10, 12],
+        "head_type": "bert_cls",
+        "norm_type": "none",
+        "dropout": 0.1,
+    }
+    data["selection"]["quality_metric"] = "spearman_correlation"
+    config = load_config(_write_config(tmp_path, data))
+    assert config.task.type == "text_regression"
+    assert config.task.dataset == "stsb"
+
+
+def test_config_accepts_mnli_text_classification(tmp_path: Path) -> None:
+    data = _base_config()
+    data["task"] = {
+        "type": "text_classification",
+        "dataset": "mnli",
+        "num_classes": 3,
+        "selection_fraction": 0.1,
+        "text_fields": ["premise", "hypothesis"],
+        "max_length": 128,
+        "metric_name": "accuracy",
+    }
+    data["model"] = {
+        "family": "roberta",
+        "pretrained_model_name": "roberta-base",
+        "candidate_depths": [2, 4, 6, 8, 10, 12],
+        "head_type": "roberta_cls_linear",
+        "norm_type": "none",
+        "dropout": 0.1,
+    }
+    config = load_config(_write_config(tmp_path, data))
+    assert config.task.dataset == "mnli"
+    assert config.task.num_classes == 3
+
+
+def test_config_accepts_distilled_shallow_baseline(tmp_path: Path) -> None:
+    data = _base_config()
+    data["task"] = {
+        "type": "text_classification",
+        "dataset": "sst2",
+        "num_classes": 2,
+        "selection_fraction": 0.1,
+        "text_fields": ["sentence"],
+        "max_length": 128,
+        "metric_name": "accuracy",
+    }
+    data["model"] = {
+        "family": "bert",
+        "pretrained_model_name": "bert-base-uncased",
+        "candidate_depths": [2, 4, 6, 8, 10, 12],
+        "head_type": "bert_cls",
+        "norm_type": "none",
+        "dropout": 0.1,
+    }
+    data["training"]["mode"] = "full_only"
+    data["baseline"] = {
+        "kind": "distilled_shallow",
+        "target_depth": 2,
+        "teacher_output_dir": "pods/results/raw/sst2_bert_base_full",
+        "distillation_alpha": 0.5,
+        "distillation_temperature": 2.0,
+    }
+    config = load_config(_write_config(tmp_path, data))
+    assert config.baseline.kind == "distilled_shallow"
+    assert config.baseline.teacher_output_dir is not None
+
+
+def test_config_accepts_snapshot_style_null_input_shape_for_transformers(tmp_path: Path) -> None:
+    data = _base_config()
+    data["task"] = {
+        "type": "text_classification",
+        "dataset": "sst2",
+        "num_classes": 2,
+        "selection_fraction": 0.1,
+        "text_fields": ["sentence"],
+        "max_length": 128,
+        "metric_name": "accuracy",
+    }
+    data["model"] = {
+        "family": "bert",
+        "pretrained_model_name": "bert-base-uncased",
+        "candidate_depths": [2, 4, 6, 8, 10, 12],
+        "head_type": "bert_cls",
+        "norm_type": "none",
+        "input_shape": None,
+        "hidden_dims": [],
+        "channels": [],
+        "variant": None,
+        "dropout": 0.1,
+    }
+    config = load_config(_write_config(tmp_path, data))
+    assert config.model.input_shape is None

@@ -225,3 +225,143 @@ Operational rule for next time:
 
 - use an actually observed selected depth for representative deployed-cost views
 - if multiple selected depths exist, prefer a mode or explicitly show the full set rather than rounding
+
+## 2026-05-12
+
+### Pytest temp and cleanup paths can fail inside this workspace even when the code under test is fine
+
+Observed behaviour:
+
+- `uv run pytest pods/tests/test_review_figures.py -q` failed before useful test reporting because pytest attempted to create or clean temp directories in locations that raised `PermissionError`
+- forcing `--basetemp` into `temp/` avoided the first user-profile temp issue, but pytest session cleanup still hit permission problems on repo-local temp paths
+- direct `uv run python` verification of the new review-figure helpers and CLI succeeded
+
+What this means:
+
+- this is an execution-environment problem around pytest temp-dir handling, not evidence that `pods.eval.review_figures` is broken
+- direct script verification is a valid fallback when pytest itself cannot complete because of temp-dir permissions
+
+Operational rule for next time:
+
+- if pytest fails during temp-dir setup or cleanup, separate that from actual test failures before debugging code
+- prefer a direct `uv run python` verification script for the specific new code path if pytest cannot complete in this environment
+
+### `uv run` and module execution can both be blocked by environment quirks, so direct interpreter fallbacks should be prepared
+
+Observed behaviour:
+
+- `uv run python -m pods.experiments.matrix_status` failed because `C:\Users\Henry\AppData\Local\uv\cache` was not writable
+- `python -m pods.experiments.matrix_status` then resolved an older package path rather than the repo-local module, while direct script execution with `PYTHONPATH=pods/src` used the intended file
+
+What this means:
+
+- command failure or stale output here can come from environment resolution rather than experiment-code regressions
+- repo-local verification sometimes needs explicit interpreter pathing instead of the nominal CLI entrypoint
+
+Operational rule for next time:
+
+- if `uv run` fails under `AppData`, retry with a workspace-local cache such as `UV_CACHE_DIR=temp/.uv-cache`
+- if `python -m pods...` appears to ignore repo edits, rerun with `PYTHONPATH=pods/src` or execute the script file directly
+
+### Bulk config generation must filter unsupported task-method combinations before writing files
+
+Observed behaviour:
+
+- the first bulk config pass generated `LayerDrop` configs for `STS-B`
+- current schema rejects that combination because `LayerDrop` is restricted to `text_classification`
+- those invalid configs were moved into `archive/invalid_generated_configs/`
+
+What this means:
+
+- large config-surface automation is useful, but it can silently produce spec-invalid files if method constraints are not encoded up front
+
+Operational rule for next time:
+
+- validate the method/task compatibility matrix before bulk-writing configs
+- when a generated config is invalid, move it into `archive/` rather than deleting it
+
+### New proof-task datasets should be prefetched before the proof-run gate starts
+
+Observed behaviour:
+
+- the first `stsb_bert_base_full` proof attempt failed before training because `glue/stsb` was not cached locally
+- `mnli` would have been blocked for the same reason until both datasets were downloaded into `temp/data/huggingface`
+
+What this means:
+
+- the proof-run gate can still be blocked by operational cache state even after framework work is code-complete
+
+Operational rule for next time:
+
+- before starting a new task-type proof gate, prefetch the missing datasets explicitly
+- for this repo, treat `temp/data/huggingface` population as a required precondition when a task has never been run locally
+
+### Config snapshots must round-trip through `load_config` because distillation now depends on them
+
+Observed behaviour:
+
+- the first `sst2_bert_base_distilled_shallow_d2` run failed because `load_config` tried to convert `input_shape: null` from a transformer `config.snapshot.yaml` into `tuple(None)`
+- the bug only surfaced once teacher validation began reading saved config snapshots instead of just state dicts
+
+What this means:
+
+- snapshot deserialisation is now part of the runtime path for distillation, not just a reporting artefact
+
+Operational rule for next time:
+
+- whenever config snapshots are written from dataclass state, verify that `load_config(config.snapshot.yaml)` works for that model family
+- especially check optional fields that are intentionally `null` for transformer models
+
+### Historical BERT teacher checkpoints can legitimately miss pooler weights
+
+Observed behaviour:
+
+- after fixing snapshot loading, the distilled proof run still failed because the saved `sst2_bert_base_full/model.pt` teacher checkpoint did not include `backbone.pooler.dense.{weight,bias}`
+- the current `PodsBert` build path instantiates those parameters even though the project heads consume hidden states directly and do not use pooled outputs
+
+What this means:
+
+- strict checkpoint loading would reject otherwise valid historical teacher runs
+- the compatibility gap is narrow and should be handled explicitly rather than silently ignored in general
+
+Operational rule for next time:
+
+- allow only the known optional BERT pooler gap when loading historical teacher checkpoints
+- keep all other missing or unexpected keys as hard failures
+
+### STS-B is not forgiving to very shallow BERT baselines, even with distillation
+
+Observed behaviour:
+
+- the completed BERT `stsb` matrix selected reasonable depths for the multi-depth methods, but the single-depth `d2` baselines were much weaker
+- `stsb_bert_base_shallow_d2` finished with Spearman around `0.23`
+- `stsb_bert_base_distilled_shallow_d2` improved only slightly, to around `0.28`
+- `d4` was much healthier for both shallow and distilled variants
+
+What this means:
+
+- `stsb` should not be treated like a task where depth-2 specialists are likely to remain competitive
+- distillation does not rescue an overly shallow fixed-depth student on this task
+
+Operational rule for next time:
+
+- when planning the paper narrative, treat `stsb` as evidence that the useful deployment frontier can still have a hard lower-depth floor
+- do not assume that adding distillation makes `d2` a serious comparator on every GLUE task
+
+### Interrupted run blocks can leave accepted raw runs behind a stale processed status snapshot
+
+Observed behaviour:
+
+- the `mnli_bert_base_pods_all` chunk was interrupted while the supervising wait was active
+- direct inspection afterwards showed `mnli_bert_base_pods_all` and `mnli_bert_base_pods_all_seed11` had already completed successfully on disk, while `mnli_bert_base_pods_all_seed19` had not started or had not finished
+- `pods/results/processed/planning/glue_matrix_status.json` still reported those completed runs as missing until the regeneration commands were rerun
+
+What this means:
+
+- after an interruption, the raw run layer may be ahead of the processed reporting layer
+- treating the last matrix-status snapshot as truth after an interrupted tranche can misstate real progress
+
+Operational rule for next time:
+
+- after any interrupted experiment block, inspect raw run directories first
+- if valid new runs exist, rerun matrix status, paper asset export, and review figures before recording progress or planning the next chunk

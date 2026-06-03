@@ -15,7 +15,7 @@ from pods.data.batches import move_batch_to_device
 from pods.eval.quality import PrefixQualityResult, evaluate_all_prefixes
 from pods.models.interfaces import PrefixCapableModel
 from pods.training.depth_sampling import sample_training_depths
-from pods.training.losses import aggregate_multidepth_loss, classification_loss
+from pods.training.losses import aggregate_multidepth_loss, supervised_loss
 
 
 @dataclass
@@ -55,6 +55,8 @@ def train_multidepth_model(
     rng: random.Random | None = None,
     progressive_middle_depths: tuple[int, ...] = (),
     evaluation_fn: Callable[[PrefixCapableModel, DataLoader, tuple[int, ...], torch.device], dict[int, PrefixQualityResult]] = evaluate_all_prefixes,
+    task_type: str = "image_classification",
+    metric_name: str = "accuracy",
 ) -> tuple[PrefixCapableModel, list[EpochSummary]]:
     if rng is None:
         rng = random.Random()
@@ -91,7 +93,7 @@ def train_multidepth_model(
             with autocast_context:
                 logits_by_depth = model.forward_depths(inputs, depths)
                 losses_by_depth = {
-                    depth: classification_loss(logits, labels, label_smoothing=label_smoothing)
+                    depth: supervised_loss(logits, labels, task_type=task_type, label_smoothing=label_smoothing)
                     for depth, logits in logits_by_depth.items()
                 }
                 total_loss = aggregate_multidepth_loss(losses_by_depth, model.max_depth(), weight_power, normalise=True)
@@ -121,9 +123,9 @@ def train_multidepth_model(
         if scheduler is not None:
             scheduler.step()
 
-        val_results = evaluation_fn(model, val_loader, model.candidate_depths, device)
+        val_results = evaluation_fn(model, val_loader, model.candidate_depths, device, metric_name=metric_name, task_type=task_type)
         full_depth = max(model.candidate_depths)
-        score = val_results[full_depth].accuracy
+        score = val_results[full_depth].metric_value
         if score > best_score:
             best_state = copy.deepcopy(model.state_dict())
             best_score = score

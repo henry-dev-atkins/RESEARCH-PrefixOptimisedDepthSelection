@@ -8,6 +8,38 @@ def classification_loss(logits: torch.Tensor, labels: torch.Tensor, label_smooth
     return F.cross_entropy(logits, labels, label_smoothing=label_smoothing)
 
 
+def regression_loss(predictions: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    return F.mse_loss(predictions.reshape(-1), labels.reshape(-1).to(predictions.dtype))
+
+
+def supervised_loss(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    task_type: str,
+    label_smoothing: float = 0.0,
+) -> torch.Tensor:
+    if task_type in {"image_classification", "text_classification"}:
+        return classification_loss(logits, labels.long(), label_smoothing=label_smoothing)
+    if task_type == "text_regression":
+        return regression_loss(logits, labels)
+    raise ValueError(f"Unsupported task_type: {task_type}")
+
+
+def distillation_loss(
+    student_logits: torch.Tensor,
+    teacher_logits: torch.Tensor,
+    task_type: str,
+    temperature: float,
+) -> torch.Tensor:
+    if task_type in {"image_classification", "text_classification"}:
+        student_log_probs = F.log_softmax(student_logits / temperature, dim=-1)
+        teacher_probs = F.softmax(teacher_logits / temperature, dim=-1)
+        return F.kl_div(student_log_probs, teacher_probs, reduction="batchmean") * (temperature**2)
+    if task_type == "text_regression":
+        return regression_loss(student_logits, teacher_logits)
+    raise ValueError(f"Unsupported task_type: {task_type}")
+
+
 def aggregate_multidepth_loss(
     losses_by_depth: dict[int, torch.Tensor],
     max_depth: int,

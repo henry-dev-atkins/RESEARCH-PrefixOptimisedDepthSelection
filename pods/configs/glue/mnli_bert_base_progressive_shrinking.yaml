@@ -1,0 +1,74 @@
+experiment:
+  name: mnli_bert_base_progressive_shrinking
+  seed: 7
+  output_dir: pods/results/raw/mnli_bert_base_progressive_shrinking
+  tags:
+  - glue
+  - mnli
+  - bert-base
+  - progressive-shrinking
+task:
+  type: text_classification
+  dataset: mnli
+  num_classes: 3
+  selection_fraction: 0.1
+  text_fields:
+  - premise
+  - hypothesis
+  max_length: 128
+  metric_name: accuracy
+model:
+  family: bert
+  pretrained_model_name: bert-base-uncased
+  candidate_depths:
+  - 2
+  - 4
+  - 6
+  - 8
+  - 10
+  - 12
+  head_type: bert_cls
+  norm_type: none
+  dropout: 0.1
+training:
+  mode: progressive_sandwich
+  epochs: 3
+  batch_size: 16
+  optimiser: adamw
+  learning_rate: 2.0e-05
+  weight_decay: 0.01
+  grad_clip: 1.0
+  mixed_precision: bf16
+  weight_power: 1.0
+  num_middle_depths: 0
+  scheduler: cosine
+  scheduler_t_max: 3
+  label_smoothing: 0.0
+  momentum: 0.9
+  num_workers: 0
+  pin_memory: true
+  persistent_workers: false
+  drop_last: false
+  gradient_accumulation_steps: 2
+  warmup_ratio: 0.1
+  progressive_middle_depths:
+  - 0
+  - 1
+  - 2
+selection:
+  quality_metric: accuracy
+  cost_metric: latency_ms_p50
+  relative_accuracy_drop: 0.01
+  absolute_accuracy_target: null
+benchmark:
+  batch_sizes:
+  - 1
+  - 8
+  selection_batch_size: 1
+  warmup_steps: 10
+  timed_steps: 30
+baseline:
+  kind: progressive_shrinking
+  target_depth: null
+  head_fit_epochs: 3
+  head_fit_learning_rate: 0.001

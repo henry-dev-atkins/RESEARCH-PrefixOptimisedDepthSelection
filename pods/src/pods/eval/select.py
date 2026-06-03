@@ -23,7 +23,7 @@ class PrefixCostResult:
 
 @dataclass(frozen=True)
 class SelectionSpec:
-    quality_metric: Literal["accuracy", "matthews_correlation"]
+    quality_metric: str
     cost_metric: Literal["latency_ms_p50", "latency_ms_p95", "peak_memory_mb", "model_bytes"]
     target_kind: Literal["relative", "absolute", "confidence_bound_relative", "confidence_bound_absolute"]
     relative_to_full_accuracy_drop: float | None

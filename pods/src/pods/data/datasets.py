@@ -36,7 +36,7 @@ def build_text_datasets(config: PodsConfig, root: str | Path = "temp/data") -> d
     tokenizer = AutoTokenizer.from_pretrained(config.model.pretrained_model_name)
     text_fields = config.task.text_fields
 
-    if dataset_name not in {"sst2", "mrpc", "rte", "qqp", "qnli", "cola"}:
+    if dataset_name not in {"sst2", "mrpc", "rte", "qqp", "qnli", "cola", "stsb", "mnli"}:
         raise ValueError(f"Unsupported text dataset: {dataset_name}")
 
     raw = load_dataset("glue", dataset_name, cache_dir=str(root / "huggingface"))
@@ -61,4 +61,12 @@ def build_text_datasets(config: PodsConfig, root: str | Path = "temp/data") -> d
         encoded[split_name] = split_dataset.remove_columns(remove)
         encoded[split_name].set_format(type="torch")
     _ = keep_columns
-    return {"train": encoded["train"], "validation": encoded["validation"], "test": encoded["validation"]}
+    output = {"train": encoded["train"]}
+    if dataset_name == "mnli":
+        output["validation_primary"] = encoded["validation_matched"]
+        output["validation_secondary"] = encoded["validation_mismatched"]
+        output["test"] = encoded["validation_matched"]
+    else:
+        output["validation_primary"] = encoded["validation"]
+        output["test"] = encoded["validation"]
+    return output

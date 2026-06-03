@@ -8,10 +8,7 @@ from typing import Any
 
 
 def _mean_std(values: list[float]) -> dict[str, float]:
-    return {
-        "mean": mean(values),
-        "std": pstdev(values) if len(values) > 1 else 0.0,
-    }
+    return {"mean": mean(values), "std": pstdev(values) if len(values) > 1 else 0.0}
 
 
 def _group_numeric_by_key(rows: list[dict[str, Any]], key: str) -> dict[str, dict[str, float]]:
@@ -21,23 +18,27 @@ def _group_numeric_by_key(rows: list[dict[str, Any]], key: str) -> dict[str, dic
     return {group_key: _mean_std(values) for group_key, values in sorted(grouped.items(), key=lambda item: int(item[0]))}
 
 
-def _summarise_selection_results(runs: list[dict[str, Any]]) -> dict[str, Any]:
+def _quality_rows(run_section: dict[str, Any]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    for run in runs:
-        for depth, metrics in run.get("selection_results", {}).items():
+    for depth, metrics in run_section.items():
+        rows.append({"depth": int(depth), "metric": "loss", "value": metrics["loss"]})
+        if metrics.get("accuracy") is not None:
             rows.append({"depth": int(depth), "metric": "accuracy", "value": metrics["accuracy"]})
-            rows.append({"depth": int(depth), "metric": "loss", "value": metrics["loss"]})
-            metric_name = metrics.get("metric_name")
-            metric_value = metrics.get("metric_value")
-            if metric_name is not None and metric_value is not None and metric_name != "accuracy":
-                rows.append({"depth": int(depth), "metric": metric_name, "value": metric_value})
+        metric_name = metrics.get("metric_name")
+        metric_value = metrics.get("metric_value")
+        if metric_name is not None and metric_value is not None:
+            rows.append({"depth": int(depth), "metric": metric_name, "value": metric_value})
+        for aux_name, aux_value in metrics.get("aux_metrics", {}).items():
+            rows.append({"depth": int(depth), "metric": aux_name, "value": aux_value})
+    return rows
+
+
+def _summarise_quality_results(runs: list[dict[str, Any]], section_name: str) -> dict[str, Any]:
     metrics_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in rows:
-        metrics_by_name[row["metric"]].append(row)
-    return {
-        metric_name: _group_numeric_by_key(metric_rows, "depth")
-        for metric_name, metric_rows in sorted(metrics_by_name.items())
-    }
+    for run in runs:
+        for row in _quality_rows(run.get(section_name, {})):
+            metrics_by_name[row["metric"]].append(row)
+    return {metric_name: _group_numeric_by_key(metric_rows, "depth") for metric_name, metric_rows in sorted(metrics_by_name.items())}
 
 
 def _summarise_cost_results(runs: list[dict[str, Any]], key: str) -> dict[str, Any]:
@@ -58,14 +59,7 @@ def _summarise_cost_results(runs: list[dict[str, Any]], key: str) -> dict[str, A
                 ):
                     if metrics.get(metric_name) is None:
                         continue
-                    rows.append(
-                        {
-                            "depth": int(depth),
-                            "batch_size": int(batch_size),
-                            "metric": metric_name,
-                            "value": metrics[metric_name],
-                        }
-                    )
+                    rows.append({"depth": int(depth), "batch_size": int(batch_size), "metric": metric_name, "value": metrics[metric_name]})
     metrics_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         metrics_by_name[row["metric"]].append(row)
@@ -81,25 +75,6 @@ def _summarise_cost_results(runs: list[dict[str, Any]], key: str) -> dict[str, A
     }
 
 
-def _summarise_final_results(runs: list[dict[str, Any]]) -> dict[str, Any]:
-    rows: list[dict[str, Any]] = []
-    for run in runs:
-        for depth, metrics in run.get("final_results", {}).items():
-            rows.append({"depth": int(depth), "metric": "accuracy", "value": metrics["accuracy"]})
-            rows.append({"depth": int(depth), "metric": "loss", "value": metrics["loss"]})
-            metric_name = metrics.get("metric_name")
-            metric_value = metrics.get("metric_value")
-            if metric_name is not None and metric_value is not None and metric_name != "accuracy":
-                rows.append({"depth": int(depth), "metric": metric_name, "value": metric_value})
-    metrics_by_name: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in rows:
-        metrics_by_name[row["metric"]].append(row)
-    return {
-        metric_name: _group_numeric_by_key(metric_rows, "depth")
-        for metric_name, metric_rows in sorted(metrics_by_name.items())
-    }
-
-
 def _summary_variant_key(payload: dict[str, Any]) -> str:
     baseline_kind = payload["baseline"]["kind"]
     if baseline_kind == "pods":
@@ -110,10 +85,11 @@ def _summary_variant_key(payload: dict[str, Any]) -> str:
             return "pods_sandwich"
     if baseline_kind == "layerdrop":
         return "layerdrop"
-    if baseline_kind == "shallow_independent":
+    if baseline_kind in {"shallow_independent", "distilled_shallow"}:
         target_depth = payload.get("baseline", {}).get("target_depth")
         if target_depth is not None:
-            return f"shallow_independent_d{int(target_depth)}"
+            prefix = "distilled_shallow" if baseline_kind == "distilled_shallow" else "shallow_independent"
+            return f"{prefix}_d{int(target_depth)}"
     return baseline_kind
 
 
@@ -123,11 +99,7 @@ def summarise_results(raw_root: Path) -> dict[str, Any]:
         payload = json.loads(result_path.read_text(encoding="utf-8"))
         if "task" not in payload or "model" not in payload or "baseline" not in payload:
             continue
-        key = (
-            payload["task"]["dataset"],
-            payload["model"]["family"],
-            _summary_variant_key(payload),
-        )
+        key = (payload["task"]["dataset"], payload["model"]["family"], _summary_variant_key(payload))
         grouped[key].append(payload)
 
     summary: dict[str, Any] = {}
@@ -135,7 +107,7 @@ def summarise_results(raw_root: Path) -> dict[str, Any]:
         dataset, model_family, baseline_kind = key
         first_final_result = next(iter(runs[0]["final_results"].values()))
         task_metric_name = first_final_result.get("metric_name", "accuracy")
-        final_metric_values = [next(iter(run["final_results"].values())).get("metric_value", next(iter(run["final_results"].values()))["accuracy"]) for run in runs]
+        final_metric_values = [next(iter(run["final_results"].values())).get("metric_value", next(iter(run["final_results"].values())).get("accuracy", 0.0)) for run in runs]
         summary[f"{dataset}:{model_family}:{baseline_kind}"] = {
             "num_runs": len(runs),
             "seeds": [run["experiment"]["seed"] for run in runs if "experiment" in run and "seed" in run["experiment"]],
@@ -147,23 +119,19 @@ def summarise_results(raw_root: Path) -> dict[str, Any]:
             "final_metric_std": pstdev(final_metric_values) if len(final_metric_values) > 1 else 0.0,
             "final_accuracy_mean": mean(final_metric_values),
             "final_accuracy_std": pstdev(final_metric_values) if len(final_metric_values) > 1 else 0.0,
-            "selection_results_by_depth": _summarise_selection_results(runs),
+            "selection_results_by_depth": _summarise_quality_results(runs, "selection_results"),
             "selection_costs_by_depth_and_batch_size": _summarise_cost_results(runs, "cost_results"),
-            "final_results_by_depth": _summarise_final_results(runs),
+            "final_results_by_depth": _summarise_quality_results(runs, "final_results"),
             "final_costs_by_batch_size": _summarise_cost_results(
-                [
-                    {
-                        "final_costs": {
-                            str(run["selected_depth"]): {
-                                str(batch_size): metrics for batch_size, metrics in run.get("final_costs", {}).items()
-                            }
-                        }
-                    }
-                    for run in runs
-                ],
+                [{"final_costs": {str(run["selected_depth"]): {str(batch_size): metrics for batch_size, metrics in run.get("final_costs", {}).items()}}} for run in runs],
                 "final_costs",
             ),
         }
+        if any("final_results_secondary" in run for run in runs):
+            summary[f"{dataset}:{model_family}:{baseline_kind}"]["final_results_secondary_by_depth"] = _summarise_quality_results(
+                [{"final_results": run.get("final_results_secondary", {})} for run in runs],
+                "final_results",
+            )
     return summary
 
 

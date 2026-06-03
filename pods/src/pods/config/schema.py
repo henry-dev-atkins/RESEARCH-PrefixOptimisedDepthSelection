@@ -103,6 +103,9 @@ class BaselineConfig:
     target_depth: int | None = None
     head_fit_epochs: int = 3
     head_fit_learning_rate: float = 0.001
+    teacher_output_dir: str | None = None
+    distillation_alpha: float = 0.5
+    distillation_temperature: float = 2.0
 
 
 @dataclass(frozen=True)
@@ -121,6 +124,12 @@ def _as_tuple_ints(values: list[Any], field_name: str) -> tuple[int, ...]:
     result = tuple(int(value) for value in values)
     _ensure(all(value > 0 for value in result), f"{field_name} must contain positive integers")
     return result
+
+
+def _optional_tuple(values: list[Any] | tuple[Any, ...] | None) -> tuple[Any, ...] | None:
+    if values is None:
+        return None
+    return tuple(values)
 
 
 def load_config(path: str | Path) -> PodsConfig:
@@ -164,7 +173,7 @@ def load_config(path: str | Path) -> PodsConfig:
             candidate_depths=candidate_depths,
             head_type=model_data["head_type"],
             norm_type=model_data["norm_type"],
-            input_shape=tuple(model_data["input_shape"]) if "input_shape" in model_data else None,
+            input_shape=_optional_tuple(model_data.get("input_shape")),
             hidden_dims=tuple(model_data.get("hidden_dims", [])),
             channels=tuple(model_data.get("channels", [])),
             groupnorm_groups=int(model_data.get("groupnorm_groups", 8)),
@@ -221,6 +230,9 @@ def load_config(path: str | Path) -> PodsConfig:
             target_depth=baseline_data.get("target_depth"),
             head_fit_epochs=int(baseline_data.get("head_fit_epochs", 3)),
             head_fit_learning_rate=float(baseline_data.get("head_fit_learning_rate", 0.001)),
+            teacher_output_dir=baseline_data.get("teacher_output_dir"),
+            distillation_alpha=float(baseline_data.get("distillation_alpha", 0.5)),
+            distillation_temperature=float(baseline_data.get("distillation_temperature", 2.0)),
         ),
     )
     _validate_config(config)
@@ -232,7 +244,7 @@ def config_to_dict(config: PodsConfig) -> dict[str, Any]:
 
 
 def _validate_config(config: PodsConfig) -> None:
-    _ensure(config.task.type in {"image_classification", "text_classification"}, "task.type is unsupported")
+    _ensure(config.task.type in {"image_classification", "text_classification", "text_regression"}, "task.type is unsupported")
     _ensure(config.task.selection_fraction > 0.0 and config.task.selection_fraction < 1.0, "task.selection_fraction must be between 0 and 1")
     _ensure(
         config.model.head_type in {
@@ -271,8 +283,8 @@ def _validate_config(config: PodsConfig) -> None:
         _ensure(config.training.scheduler_gamma is not None, "training.scheduler_gamma is required for multistep scheduler")
 
     _ensure(
-        config.selection.quality_metric in {"accuracy", "matthews_correlation"},
-        "selection.quality_metric must be 'accuracy' or 'matthews_correlation'",
+        config.selection.quality_metric in {"accuracy", "matthews_correlation", "spearman_correlation", "pearson_correlation"},
+        "selection.quality_metric is unsupported",
     )
     _ensure(
         config.selection.cost_metric in {"latency_ms_p50", "latency_ms_p95", "peak_memory_mb", "model_bytes"},
@@ -291,11 +303,13 @@ def _validate_config(config: PodsConfig) -> None:
     _ensure(config.benchmark.selection_batch_size in config.benchmark.batch_sizes, "benchmark.selection_batch_size must be present in benchmark.batch_sizes")
     _ensure(config.benchmark.repeat_runs > 0, "benchmark.repeat_runs must be positive")
     _ensure(
-        config.baseline.kind in {"pods", "full", "shallow_independent", "naive_truncation", "layerdrop", "progressive_shrinking"},
+        config.baseline.kind in {"pods", "full", "shallow_independent", "naive_truncation", "layerdrop", "progressive_shrinking", "distilled_shallow"},
         "baseline.kind is unsupported",
     )
     _ensure(config.baseline.head_fit_epochs > 0, "baseline.head_fit_epochs must be positive")
     _ensure(config.baseline.head_fit_learning_rate > 0.0, "baseline.head_fit_learning_rate must be positive")
+    _ensure(0.0 <= config.baseline.distillation_alpha <= 1.0, "baseline.distillation_alpha must be between 0 and 1")
+    _ensure(config.baseline.distillation_temperature > 0.0, "baseline.distillation_temperature must be positive")
 
     if config.training.mode == "sandwich":
         _ensure(len(config.model.candidate_depths) >= 2, "sandwich mode requires at least two candidate depths")
@@ -307,10 +321,12 @@ def _validate_config(config: PodsConfig) -> None:
         _ensure(config.baseline.kind == "layerdrop", "training.mode='layerdrop' requires baseline.kind='layerdrop'")
         _ensure(config.task.type == "text_classification", "training.mode='layerdrop' currently supports only text_classification")
     if config.training.mode == "full_only":
-        _ensure(config.baseline.kind in {"full", "shallow_independent", "naive_truncation"}, "training.mode='full_only' requires a baseline workflow")
-    if config.baseline.kind == "shallow_independent":
+        _ensure(config.baseline.kind in {"full", "shallow_independent", "naive_truncation", "distilled_shallow"}, "training.mode='full_only' requires a baseline workflow")
+    if config.baseline.kind in {"shallow_independent", "distilled_shallow"}:
         _ensure(config.baseline.target_depth is not None, "baseline.target_depth is required for shallow_independent")
         _ensure(config.baseline.target_depth in config.model.candidate_depths, "baseline.target_depth must be one of model.candidate_depths")
+    if config.baseline.kind == "distilled_shallow":
+        _ensure(config.baseline.teacher_output_dir is not None, "baseline.teacher_output_dir is required for distilled_shallow")
     if config.baseline.kind == "progressive_shrinking":
         _ensure(config.training.mode == "progressive_sandwich", "progressive_shrinking requires training.mode='progressive_sandwich'")
     if config.baseline.kind in {"pods", "full", "naive_truncation", "layerdrop", "progressive_shrinking"}:
@@ -319,7 +335,7 @@ def _validate_config(config: PodsConfig) -> None:
     if config.task.type == "image_classification":
         _ensure(config.task.metric_name == "accuracy", "image classification currently supports only metric_name='accuracy'")
     elif config.task.type == "text_classification":
-        _ensure(config.task.dataset in {"sst2", "mrpc", "rte", "qqp", "qnli", "cola"}, "text_classification currently supports only sst2, mrpc, rte, qqp, qnli, and cola")
+        _ensure(config.task.dataset in {"sst2", "mrpc", "rte", "qqp", "qnli", "cola", "mnli"}, "text_classification currently supports only sst2, mrpc, rte, qqp, qnli, cola, and mnli")
         _ensure(config.task.text_fields, "text classification tasks require task.text_fields")
         _ensure(config.task.max_length > 0, "task.max_length must be positive")
         if config.task.dataset == "cola":
@@ -328,6 +344,13 @@ def _validate_config(config: PodsConfig) -> None:
         else:
             _ensure(config.task.metric_name == "accuracy", "Non-CoLA text tasks currently support only metric_name='accuracy'")
             _ensure(config.selection.quality_metric == "accuracy", "Non-CoLA text tasks currently support only selection.quality_metric='accuracy'")
+    elif config.task.type == "text_regression":
+        _ensure(config.task.dataset == "stsb", "text_regression currently supports only stsb")
+        _ensure(config.task.text_fields, "text regression tasks require task.text_fields")
+        _ensure(config.task.max_length > 0, "task.max_length must be positive")
+        _ensure(config.task.num_classes == 1, "text_regression requires task.num_classes=1")
+        _ensure(config.task.metric_name in {"spearman_correlation", "pearson_correlation"}, "text_regression metric_name is unsupported")
+        _ensure(config.selection.quality_metric == config.task.metric_name, "text_regression requires matching selection.quality_metric")
 
     if config.model.family == "mlp":
         _ensure(config.task.type == "image_classification", "MLP models require image_classification tasks")
@@ -345,7 +368,7 @@ def _validate_config(config: PodsConfig) -> None:
         _ensure(config.model.input_shape == (3, 32, 32), "CIFAR ResNet requires model.input_shape=[3, 32, 32]")
         _ensure(config.model.candidate_depths == (1, 2, 3), "ResNet candidate_depths must be stage-aligned as [1, 2, 3]")
     elif config.model.family in {"bert", "roberta"}:
-        _ensure(config.task.type == "text_classification", "Transformer models require text_classification tasks")
+        _ensure(config.task.type in {"text_classification", "text_regression"}, "Transformer models require text_classification or text_regression tasks")
         _ensure(config.model.pretrained_model_name is not None, "Transformer models require model.pretrained_model_name")
         _ensure(
             config.model.head_type in {
