@@ -1,5 +1,64 @@
 # AI Learnings Log
 
+## 2026-06-07
+
+### Parallel validation can hit a sandbox refresh error even when the raw result is valid
+
+Observed behaviour:
+
+- after `mnli_bert_base_pods_sandwich` completed, one parallel structural-validation command failed with:
+  - `windows sandbox: setup refresh failed with status exit code: 1`
+- other parallel reads succeeded, including `results.json` existence and final metric extraction
+- rerunning the structural validation as a single command succeeded and confirmed the run was valid
+
+What this means:
+
+- a sandbox refresh failure during local validation is not evidence that the experiment run failed
+- direct rerun of the same read-only validation is the right next check before classifying a result
+
+Operational rule for next time:
+
+- if a parallel validation command fails with sandbox refresh rather than a data/code exception, rerun the specific validation command by itself
+- accept or reject the run only from direct `results.json` evidence after that rerun
+
+### `Start-Process` can fail before launch when the PowerShell environment contains duplicate `Path` / `PATH` keys
+
+Observed behaviour:
+
+- an attempted hidden background launch for `mnli_bert_base_pods_all_seed19` failed before creating a PID
+- PowerShell reported:
+  - `Item has already been added. Key in dictionary: 'Path' Key being added: 'PATH'`
+- the direct repo-standard command then completed successfully:
+  - `uv run python -m pods.run --config pods/configs/glue/mnli_bert_base_pods_all_seed19.yaml`
+
+What this means:
+
+- this failure is a launch-environment issue, not an experiment-code issue
+- an absent PID after `Start-Process` means no run should be assumed to have started
+
+Operational rule for next time:
+
+- if `Start-Process` fails with the duplicate `Path` / `PATH` message, verify no output directory was created and use the direct `uv run` command instead
+- move any empty redirect logs into `archive/` during cleanup rather than leaving them in `temp/`
+
+### Temp cleanup can involve tracked files, so archive moves must be reported as moves rather than hidden deletions
+
+Observed behaviour:
+
+- `[SESSION.CLEAN]` moved old verification outputs, pytest scratch, copied configs/logs, and one-off plotting artefacts from `temp/` into `archive/session_clean_2026-06-07_12-58-04/`
+- `git status --short` reported the old `temp/` paths as deleted and the archive tree as untracked until staging
+- the files were not deleted; they were moved into the archive folder according to repo policy
+
+What this means:
+
+- historical temp artefacts may be tracked in this repo
+- a cleanup move can look like a large deletion in unstaged git output even when it obeys the no-deletion rule
+
+Operational rule for next time:
+
+- after archive cleanup, explicitly verify the archive destination and mention the git representation in the handover
+- when committing cleanup, stage the old paths and archive paths together so git records the movement accurately where possible
+
 ## 2026-04-26
 
 ### `uv` cache access can fail from the sandboxed agent environment

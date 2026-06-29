@@ -1,3 +1,4 @@
+- [Resolved 2026-06-07] Run `[SESSION.CLEAN]` for old temp verification, pytest scratch, copied config/log, and one-off plotting artefacts by moving them into `archive/session_clean_2026-06-07_12-58-04/`.
 - [Resolved 2026-05-12] Promote the local review plotting path into tracked repo analysis code.
 - [Resolved 2026-05-12] Progress into paper assembly from the completed BERT-first evidence base without reopening RoBERTa work.
 - Draft the first paper-facing narrative from `pods/docs/paper_assembly_notes.md` and the tracked review figure shortlist.
@@ -28,9 +29,9 @@
 - Complete the remaining BERT `mnli` matrix:
   - [Resolved 2026-05-13] `mnli_bert_base_pods_all`
   - [Resolved 2026-05-13] `mnli_bert_base_pods_all_seed11`
-  - `mnli_bert_base_pods_all_seed19`
-  - `mnli_bert_base_pods_sandwich`
-  - `mnli_bert_base_pods_sandwich_seed11`
+  - [Resolved 2026-06-07] `mnli_bert_base_pods_all_seed19`
+  - [Resolved 2026-06-07] `mnli_bert_base_pods_sandwich`
+  - [Resolved 2026-06-07] `mnli_bert_base_pods_sandwich_seed11`
   - `mnli_bert_base_pods_sandwich_seed19`
   - `mnli_bert_base_naive_truncation`
   - `mnli_bert_base_naive_truncation_seed11`
