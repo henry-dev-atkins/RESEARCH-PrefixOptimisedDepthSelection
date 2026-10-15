@@ -1,7 +1,0 @@
-model,variant,selected_depths,final_metric_mean
-resnet,full,3,0.1453
-resnet,naive_truncation,3,0.1538
-resnet,pods_all,3,0.1423
-resnet,pods_sandwich,3,0.1423
-resnet,shallow_independent_d1,1,0.1206
-resnet,shallow_independent_d2,2,0.1493

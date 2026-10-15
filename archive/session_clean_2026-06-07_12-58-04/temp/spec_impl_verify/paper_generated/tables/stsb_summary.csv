@@ -1,2 +1,0 @@
-model,variant,selected_depths,final_metric_mean
-bert,distilled_shallow_d2,2,0.8100
