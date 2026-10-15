@@ -1,3 +1,7 @@
+AI Prefix:
+I had a high-level idea and tasked AI with investigating it. 
+This is a work-in-progress result, some metrics are held back while I validate them.
+
 # Prefix Optimised Depth Selection (PODS)
 
 PODS is a research repository for training deep models whose prefixes at multiple depths are independently deployable.
