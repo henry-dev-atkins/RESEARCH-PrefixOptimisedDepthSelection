@@ -1,0 +1,7 @@
+dataset,model,variant,num_runs,seeds,selected_depths,final_metric_mean,final_metric_std,final_primary_split,final_secondary_split
+cifar10,resnet,full,1,7,3,0.5417,0.0,test,
+cifar10,resnet,naive_truncation,1,7,3,0.5417,0.0,test,
+cifar10,resnet,pods_all,1,7,3,0.5139,0.0,test,
+cifar10,resnet,pods_sandwich,1,7,3,0.5139,0.0,test,
+cifar10,resnet,shallow_independent_d1,1,7,1,0.4423,0.0,test,
+cifar10,resnet,shallow_independent_d2,1,7,2,0.5526,0.0,test,

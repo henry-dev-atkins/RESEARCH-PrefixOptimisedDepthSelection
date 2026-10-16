@@ -1,0 +1,4 @@
+dataset,model,variant,depth,latency_ms_p50,peak_memory_mb,model_bytes
+qqp,bert,full,12,4.026320006232709,1282.595703125,437941256
+qqp,bert,pods_all,8,2.8493299963884056,1067.041015625,324535304
+qqp,bert,pods_sandwich,12,3.937670006416738,1281.845703125,437941256

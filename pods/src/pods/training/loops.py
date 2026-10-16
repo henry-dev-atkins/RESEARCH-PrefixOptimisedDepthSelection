@@ -145,7 +145,7 @@ def train_multidepth_model(
         )
 
     if best_state is None:
-        raise RuntimeError("Training produced no checkpoint state")
+        raise RuntimeError("Training produced no best model state")
 
     model.load_state_dict(best_state)
     return model, history

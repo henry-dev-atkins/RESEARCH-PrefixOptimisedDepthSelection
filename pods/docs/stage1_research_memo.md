@@ -29,7 +29,7 @@ PODS trains one deep model whose prefixes at selected depths are independently d
 ## Metrics
 
 - Quality: accuracy, loss
-- Deployment: latency p50/p95, throughput, peak memory, serialised model size
+- Deployment: latency p50/p95, throughput, peak memory, tensor model size
 
 ## Selection protocol
 

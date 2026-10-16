@@ -1,0 +1,514 @@
+{
+  "history": [
+    {
+      "train_loss": 0.26257996775719195,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.8639940608760208,
+          "loss": 0.3186012885618316
+        },
+        "4": {
+          "accuracy": 0.9069042316258352,
+          "loss": 0.23279141350950058
+        },
+        "6": {
+          "accuracy": 0.9349665924276169,
+          "loss": 0.17949377966418298
+        },
+        "8": {
+          "accuracy": 0.9466963622865627,
+          "loss": 0.15476711868974308
+        },
+        "10": {
+          "accuracy": 0.9529324424647364,
+          "loss": 0.14438687121328284
+        },
+        "12": {
+          "accuracy": 0.9532293986636972,
+          "loss": 0.1457979919434523
+        }
+      }
+    },
+    {
+      "train_loss": 0.1339913070140179,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.8957683741648107,
+          "loss": 0.2695011955636824
+        },
+        "4": {
+          "accuracy": 0.925909428359317,
+          "loss": 0.2052963934589866
+        },
+        "6": {
+          "accuracy": 0.9459539717891611,
+          "loss": 0.1797102891920935
+        },
+        "8": {
+          "accuracy": 0.9518930957683742,
+          "loss": 0.16621294458187236
+        },
+        "10": {
+          "accuracy": 0.9560504825538233,
+          "loss": 0.1522084643833378
+        },
+        "12": {
+          "accuracy": 0.9541202672605791,
+          "loss": 0.15223465468997235
+        }
+      }
+    },
+    {
+      "train_loss": 0.08478055016531426,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.9024498886414254,
+          "loss": 0.2575837690341712
+        },
+        "4": {
+          "accuracy": 0.9363028953229399,
+          "loss": 0.19935919276833447
+        },
+        "6": {
+          "accuracy": 0.948181143281366,
+          "loss": 0.19835657102125678
+        },
+        "8": {
+          "accuracy": 0.9538233110616184,
+          "loss": 0.18879420854090406
+        },
+        "10": {
+          "accuracy": 0.955456570155902,
+          "loss": 0.18769236457974559
+        },
+        "12": {
+          "accuracy": 0.9545657015590201,
+          "loss": 0.19180435485724406
+        }
+      }
+    }
+  ],
+  "selection_results": {
+    "2": {
+      "depth": 2,
+      "loss": 0.2575837690341712,
+      "accuracy": 0.9024498886414254,
+      "metric_name": "accuracy",
+      "metric_value": 0.9024498886414254,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 6735,
+      "aux_metrics": {
+        "accuracy": 0.9024498886414254,
+        "matthews_correlation": 0.8012989382489356
+      }
+    },
+    "4": {
+      "depth": 4,
+      "loss": 0.19935919276833447,
+      "accuracy": 0.9363028953229399,
+      "metric_name": "accuracy",
+      "metric_value": 0.9363028953229399,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 6735,
+      "aux_metrics": {
+        "accuracy": 0.9363028953229399,
+        "matthews_correlation": 0.8699866067982989
+      }
+    },
+    "6": {
+      "depth": 6,
+      "loss": 0.19835657102125678,
+      "accuracy": 0.948181143281366,
+      "metric_name": "accuracy",
+      "metric_value": 0.948181143281366,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 6735,
+      "aux_metrics": {
+        "accuracy": 0.948181143281366,
+        "matthews_correlation": 0.8942515015720911
+      }
+    },
+    "8": {
+      "depth": 8,
+      "loss": 0.18879420854090406,
+      "accuracy": 0.9538233110616184,
+      "metric_name": "accuracy",
+      "metric_value": 0.9538233110616184,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 6735,
+      "aux_metrics": {
+        "accuracy": 0.9538233110616184,
+        "matthews_correlation": 0.9057313754261926
+      }
+    },
+    "10": {
+      "depth": 10,
+      "loss": 0.18769236457974559,
+      "accuracy": 0.955456570155902,
+      "metric_name": "accuracy",
+      "metric_value": 0.955456570155902,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 6735,
+      "aux_metrics": {
+        "accuracy": 0.955456570155902,
+        "matthews_correlation": 0.9090076943852916
+      }
+    },
+    "12": {
+      "depth": 12,
+      "loss": 0.19180435485724406,
+      "accuracy": 0.9545657015590201,
+      "metric_name": "accuracy",
+      "metric_value": 0.9545657015590201,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 6735,
+      "aux_metrics": {
+        "accuracy": 0.9545657015590201,
+        "matthews_correlation": 0.9071787931245529
+      }
+    }
+  },
+  "cost_results": {
+    "2": {
+      "1": {
+        "depth": 2,
+        "latency_ms_p50": 1.191349991131574,
+        "latency_ms_p95": 1.380260000587441,
+        "throughput_items_per_s": 825.1415155611292,
+        "peak_memory_mb": 586.568359375,
+        "model_bytes": 154426376,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      },
+      "8": {
+        "depth": 2,
+        "latency_ms_p50": 1.2561999901663512,
+        "latency_ms_p95": 1.6409050149377435,
+        "throughput_items_per_s": 6211.742788893529,
+        "peak_memory_mb": 592.89453125,
+        "model_bytes": 154426376,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      }
+    },
+    "4": {
+      "1": {
+        "depth": 4,
+        "latency_ms_p50": 1.8464000022504479,
+        "latency_ms_p95": 1.9282700115581974,
+        "throughput_items_per_s": 541.2924975438928,
+        "peak_memory_mb": 640.64453125,
+        "model_bytes": 211129352,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      },
+      "8": {
+        "depth": 4,
+        "latency_ms_p50": 1.9315999816171825,
+        "latency_ms_p95": 2.417949991649948,
+        "throughput_items_per_s": 4054.5334816552086,
+        "peak_memory_mb": 646.970703125,
+        "model_bytes": 211129352,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      }
+    },
+    "6": {
+      "1": {
+        "depth": 6,
+        "latency_ms_p50": 2.4679499911144376,
+        "latency_ms_p95": 2.6164499926380813,
+        "throughput_items_per_s": 402.30278110634777,
+        "peak_memory_mb": 694.720703125,
+        "model_bytes": 267832328,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      },
+      "8": {
+        "depth": 6,
+        "latency_ms_p50": 2.590399992186576,
+        "latency_ms_p95": 2.9644300317158923,
+        "throughput_items_per_s": 3051.3310132443603,
+        "peak_memory_mb": 701.046875,
+        "model_bytes": 267832328,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      }
+    },
+    "8": {
+      "1": {
+        "depth": 8,
+        "latency_ms_p50": 3.1189499713946134,
+        "latency_ms_p95": 3.608534997329116,
+        "throughput_items_per_s": 316.952187970914,
+        "peak_memory_mb": 748.796875,
+        "model_bytes": 324535304,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      },
+      "8": {
+        "depth": 8,
+        "latency_ms_p50": 3.2556999940425158,
+        "latency_ms_p95": 3.6242849862901494,
+        "throughput_items_per_s": 2441.9403280863844,
+        "peak_memory_mb": 755.123046875,
+        "model_bytes": 324535304,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      }
+    },
+    "10": {
+      "1": {
+        "depth": 10,
+        "latency_ms_p50": 3.7256500218063593,
+        "latency_ms_p95": 3.8639800302917138,
+        "throughput_items_per_s": 269.1874576611167,
+        "peak_memory_mb": 802.873046875,
+        "model_bytes": 381238280,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      },
+      "8": {
+        "depth": 10,
+        "latency_ms_p50": 3.9046999881975353,
+        "latency_ms_p95": 4.318640023120679,
+        "throughput_items_per_s": 2032.5048336797902,
+        "peak_memory_mb": 809.19921875,
+        "model_bytes": 381238280,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      }
+    },
+    "12": {
+      "1": {
+        "depth": 12,
+        "latency_ms_p50": 4.297949984902516,
+        "latency_ms_p95": 4.48651000042446,
+        "throughput_items_per_s": 231.94250299400716,
+        "peak_memory_mb": 856.94921875,
+        "model_bytes": 437941256,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      },
+      "8": {
+        "depth": 12,
+        "latency_ms_p50": 4.576550010824576,
+        "latency_ms_p95": 5.010619986569509,
+        "throughput_items_per_s": 1732.3266608757701,
+        "peak_memory_mb": 863.275390625,
+        "model_bytes": 437941256,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      }
+    }
+  },
+  "selection_spec": {
+    "quality_metric": "accuracy",
+    "cost_metric": "latency_ms_p50",
+    "target_kind": "relative",
+    "relative_to_full_accuracy_drop": 0.01,
+    "absolute_accuracy_target": null
+  },
+  "selection_target_value": 0.9445657015590201,
+  "selected_depth": 6,
+  "final_results": {
+    "6": {
+      "depth": 6,
+      "loss": 0.373214875441899,
+      "accuracy": 0.8887614678899083,
+      "metric_name": "accuracy",
+      "metric_value": 0.8887614678899083,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 872,
+      "aux_metrics": {
+        "accuracy": 0.8887614678899083,
+        "matthews_correlation": 0.7778813936855239
+      }
+    }
+  },
+  "final_costs": {
+    "1": {
+      "depth": 6,
+      "latency_ms_p50": 2.4610500258859247,
+      "latency_ms_p95": 2.6310400222428143,
+      "throughput_items_per_s": 403.81361624846664,
+      "peak_memory_mb": 951.23388671875,
+      "model_bytes": 267832328,
+      "latency_ms_p50_ci_low": null,
+      "latency_ms_p50_ci_high": null,
+      "latency_ms_p95_ci_low": null,
+      "latency_ms_p95_ci_high": null,
+      "benchmark_repeats": 1
+    },
+    "8": {
+      "depth": 6,
+      "latency_ms_p50": 2.6083500124514103,
+      "latency_ms_p95": 3.099800003110431,
+      "throughput_items_per_s": 3029.928115157651,
+      "peak_memory_mb": 957.56005859375,
+      "model_bytes": 267832328,
+      "latency_ms_p50_ci_low": null,
+      "latency_ms_p50_ci_high": null,
+      "latency_ms_p95_ci_low": null,
+      "latency_ms_p95_ci_high": null,
+      "benchmark_repeats": 1
+    }
+  },
+  "baseline": {
+    "kind": "pods",
+    "target_depth": null,
+    "head_fit_epochs": 3,
+    "head_fit_learning_rate": 0.001,
+    "distillation_alpha": 0.5,
+    "distillation_temperature": 2.0
+  },
+  "experiment": {
+    "name": "sst2_bert_base_pods_all",
+    "seed": 7,
+    "output_dir": "pods/results/raw/sst2_bert_base_pods_all",
+    "tags": [
+      "session2",
+      "glue",
+      "sst2",
+      "bert-base",
+      "pods",
+      "all"
+    ],
+    "quality_bootstrap_samples": 0,
+    "confidence_level": 0.95
+  },
+  "task": {
+    "type": "text_classification",
+    "dataset": "sst2",
+    "num_classes": 2,
+    "selection_fraction": 0.1,
+    "text_fields": [
+      "sentence"
+    ],
+    "max_length": 128,
+    "metric_name": "accuracy"
+  },
+  "model": {
+    "family": "bert",
+    "candidate_depths": [
+      2,
+      4,
+      6,
+      8,
+      10,
+      12
+    ],
+    "head_type": "bert_cls",
+    "norm_type": "none",
+    "input_shape": null,
+    "hidden_dims": [],
+    "channels": [],
+    "groupnorm_groups": 8,
+    "variant": null,
+    "pretrained_model_name": "bert-base-uncased",
+    "dropout": 0.1
+  },
+  "training": {
+    "mode": "all",
+    "epochs": 3,
+    "batch_size": 16,
+    "optimiser": "adamw",
+    "learning_rate": 2e-05,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "mixed_precision": "bf16",
+    "weight_power": 1.0,
+    "num_middle_depths": 0,
+    "scheduler": "cosine",
+    "scheduler_t_max": 3,
+    "scheduler_milestones": [],
+    "scheduler_gamma": null,
+    "label_smoothing": 0.0,
+    "momentum": 0.9,
+    "num_workers": 0,
+    "pin_memory": true,
+    "persistent_workers": false,
+    "drop_last": false,
+    "gradient_accumulation_steps": 2,
+    "warmup_ratio": 0.1,
+    "max_train_steps": null,
+    "layerdrop_prob": 0.0,
+    "progressive_middle_depths": []
+  },
+  "benchmark": {
+    "batch_sizes": [
+      1,
+      8
+    ],
+    "selection_batch_size": 1,
+    "warmup_steps": 10,
+    "timed_steps": 30,
+    "repeat_runs": 1
+  },
+  "runtime": {
+    "python_version": "3.12.12 (main, Feb 12 2026, 00:40:26) [MSC v.1944 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "torch_version": "2.11.0+cu128",
+    "cuda_version": "12.8",
+    "cuda_available": true,
+    "device_type": "cuda",
+    "device_name": "NVIDIA GeForce RTX 5090",
+    "cudnn_deterministic": true,
+    "cudnn_benchmark": false
+  },
+  "evaluation_splits": {
+    "selection": "train_carved_selection",
+    "final_primary": "validation"
+  },
+  "resolved_candidate_depths": [
+    2,
+    4,
+    6,
+    8,
+    10,
+    12
+  ]
+}

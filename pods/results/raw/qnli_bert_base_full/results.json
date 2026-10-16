@@ -1,0 +1,300 @@
+{
+  "history": [
+    {
+      "train_loss": 0.34724744616704817,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.5042008783654764,
+          "loss": 0.7040368535032886
+        },
+        "4": {
+          "accuracy": 0.4798548787473744,
+          "loss": 0.7015778450695458
+        },
+        "6": {
+          "accuracy": 0.495608172617911,
+          "loss": 0.8336772726582324
+        },
+        "8": {
+          "accuracy": 0.40748520145121253,
+          "loss": 0.744077647531308
+        },
+        "10": {
+          "accuracy": 0.6264082489975177,
+          "loss": 0.6530374090749388
+        },
+        "12": {
+          "accuracy": 0.8896314683979377,
+          "loss": 0.2673456397377764
+        }
+      }
+    },
+    {
+      "train_loss": 0.1910486195365426,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.504391827382089,
+          "loss": 0.7241255060188274
+        },
+        "4": {
+          "accuracy": 0.4735535611991598,
+          "loss": 0.7027445694907194
+        },
+        "6": {
+          "accuracy": 0.4957036471262173,
+          "loss": 0.7737223890325325
+        },
+        "8": {
+          "accuracy": 0.4730761886576284,
+          "loss": 0.7769513233986797
+        },
+        "10": {
+          "accuracy": 0.6007256062631278,
+          "loss": 0.6600327110254107
+        },
+        "12": {
+          "accuracy": 0.8915409585640633,
+          "loss": 0.3044422740343989
+        }
+      }
+    },
+    {
+      "train_loss": 0.09270584628299557,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.504391827382089,
+          "loss": 0.7177788954052462
+        },
+        "4": {
+          "accuracy": 0.47832728661447393,
+          "loss": 0.7008595961479142
+        },
+        "6": {
+          "accuracy": 0.495608172617911,
+          "loss": 0.7922807780526762
+        },
+        "8": {
+          "accuracy": 0.46371968684361276,
+          "loss": 0.7521324636646188
+        },
+        "10": {
+          "accuracy": 0.6115142257017376,
+          "loss": 0.6555698160135452
+        },
+        "12": {
+          "accuracy": 0.891731907580676,
+          "loss": 0.4261668708581952
+        }
+      }
+    }
+  ],
+  "selection_results": {
+    "12": {
+      "depth": 12,
+      "loss": 0.4261668708581952,
+      "accuracy": 0.891731907580676,
+      "metric_name": "accuracy",
+      "metric_value": 0.891731907580676,
+      "metric_ci_low": 0.8852396410158487,
+      "metric_ci_high": 0.8977468016039717,
+      "num_examples": 10474,
+      "aux_metrics": {
+        "accuracy": 0.891731907580676,
+        "matthews_correlation": 0.7834539343390025
+      }
+    }
+  },
+  "cost_results": {
+    "12": {
+      "1": {
+        "depth": 12,
+        "latency_ms_p50": 3.9082799979951233,
+        "latency_ms_p95": 4.165165995946154,
+        "throughput_items_per_s": 255.20045364630158,
+        "peak_memory_mb": 870.1123046875,
+        "model_bytes": 437941256,
+        "latency_ms_p50_ci_low": 3.8658499834127724,
+        "latency_ms_p50_ci_high": 3.928350022761151,
+        "latency_ms_p95_ci_low": 4.040869983145967,
+        "latency_ms_p95_ci_high": 4.136865001055412,
+        "benchmark_repeats": 5
+      },
+      "8": {
+        "depth": 12,
+        "latency_ms_p50": 5.568759999005124,
+        "latency_ms_p95": 5.867746000294574,
+        "throughput_items_per_s": 1432.5551580972156,
+        "peak_memory_mb": 886.09130859375,
+        "model_bytes": 437941256,
+        "latency_ms_p50_ci_low": 5.516600009286776,
+        "latency_ms_p50_ci_high": 5.592750007053837,
+        "latency_ms_p95_ci_low": 5.707849987084046,
+        "latency_ms_p95_ci_high": 5.896510000457056,
+        "benchmark_repeats": 5
+      }
+    }
+  },
+  "selection_spec": {
+    "quality_metric": "accuracy",
+    "cost_metric": "latency_ms_p50",
+    "target_kind": "relative",
+    "relative_to_full_accuracy_drop": 0.01,
+    "absolute_accuracy_target": null
+  },
+  "selection_target_value": 0.891731907580676,
+  "selected_depth": 12,
+  "final_results": {
+    "12": {
+      "depth": 12,
+      "loss": 0.34743105683427317,
+      "accuracy": 0.9097565440234303,
+      "metric_name": "accuracy",
+      "metric_value": 0.9097565440234303,
+      "metric_ci_low": 0.9015193117334798,
+      "metric_ci_high": 0.9178107267069375,
+      "num_examples": 5463,
+      "aux_metrics": {
+        "accuracy": 0.9097565440234303,
+        "matthews_correlation": 0.819836856193069
+      }
+    }
+  },
+  "final_costs": {
+    "1": {
+      "depth": 12,
+      "latency_ms_p50": 3.931439999723807,
+      "latency_ms_p95": 4.157534000114538,
+      "throughput_items_per_s": 254.43037393223858,
+      "peak_memory_mb": 1288.85400390625,
+      "model_bytes": 437941256,
+      "latency_ms_p50_ci_low": 3.9052999927662313,
+      "latency_ms_p50_ci_high": 3.954549989430234,
+      "latency_ms_p95_ci_low": 4.086839983938262,
+      "latency_ms_p95_ci_high": 4.208095010835677,
+      "benchmark_repeats": 5
+    },
+    "8": {
+      "depth": 12,
+      "latency_ms_p50": 5.602739995811135,
+      "latency_ms_p95": 5.938945000525564,
+      "throughput_items_per_s": 1422.9793757459372,
+      "peak_memory_mb": 1304.8330078125,
+      "model_bytes": 437941256,
+      "latency_ms_p50_ci_low": 5.591099994489923,
+      "latency_ms_p50_ci_high": 5.605949962045997,
+      "latency_ms_p95_ci_low": 5.789544995059259,
+      "latency_ms_p95_ci_high": 6.056390004232526,
+      "benchmark_repeats": 5
+    }
+  },
+  "baseline": {
+    "kind": "full",
+    "target_depth": null,
+    "head_fit_epochs": 3,
+    "head_fit_learning_rate": 0.001,
+    "distillation_alpha": 0.5,
+    "distillation_temperature": 2.0
+  },
+  "experiment": {
+    "name": "qnli_bert_base_full",
+    "seed": 7,
+    "output_dir": "pods/results/raw/qnli_bert_base_full",
+    "tags": [
+      "session3",
+      "glue",
+      "qnli",
+      "bert-base",
+      "full",
+      "milestone4"
+    ],
+    "quality_bootstrap_samples": 256,
+    "confidence_level": 0.95
+  },
+  "task": {
+    "type": "text_classification",
+    "dataset": "qnli",
+    "num_classes": 2,
+    "selection_fraction": 0.1,
+    "text_fields": [
+      "question",
+      "sentence"
+    ],
+    "max_length": 128,
+    "metric_name": "accuracy"
+  },
+  "model": {
+    "family": "bert",
+    "candidate_depths": [
+      2,
+      4,
+      6,
+      8,
+      10,
+      12
+    ],
+    "head_type": "bert_cls",
+    "norm_type": "none",
+    "input_shape": null,
+    "hidden_dims": [],
+    "channels": [],
+    "groupnorm_groups": 8,
+    "variant": null,
+    "pretrained_model_name": "bert-base-uncased",
+    "dropout": 0.1
+  },
+  "training": {
+    "mode": "full_only",
+    "epochs": 3,
+    "batch_size": 16,
+    "optimiser": "adamw",
+    "learning_rate": 2e-05,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "mixed_precision": "bf16",
+    "weight_power": 1.0,
+    "num_middle_depths": 0,
+    "scheduler": "cosine",
+    "scheduler_t_max": 3,
+    "scheduler_milestones": [],
+    "scheduler_gamma": null,
+    "label_smoothing": 0.0,
+    "momentum": 0.9,
+    "num_workers": 0,
+    "pin_memory": true,
+    "persistent_workers": false,
+    "drop_last": false,
+    "gradient_accumulation_steps": 2,
+    "warmup_ratio": 0.1,
+    "max_train_steps": null,
+    "layerdrop_prob": 0.0,
+    "progressive_middle_depths": []
+  },
+  "benchmark": {
+    "batch_sizes": [
+      1,
+      8
+    ],
+    "selection_batch_size": 1,
+    "warmup_steps": 10,
+    "timed_steps": 30,
+    "repeat_runs": 5
+  },
+  "runtime": {
+    "python_version": "3.12.12 (main, Feb 12 2026, 00:40:26) [MSC v.1944 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "torch_version": "2.11.0+cu128",
+    "cuda_version": "12.8",
+    "cuda_available": true,
+    "device_type": "cuda",
+    "device_name": "NVIDIA GeForce RTX 5090",
+    "cudnn_deterministic": true,
+    "cudnn_benchmark": false
+  },
+  "evaluation_splits": {
+    "selection": "train_carved_selection",
+    "final_primary": "validation"
+  },
+  "resolved_candidate_depths": [
+    12
+  ]
+}

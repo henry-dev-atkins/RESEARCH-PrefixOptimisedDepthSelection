@@ -1,0 +1,253 @@
+{
+  "history": [
+    {
+      "train_loss": 2.0508567794435724,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.2982,
+          "loss": 1.9102586055755615
+        }
+      }
+    },
+    {
+      "train_loss": 1.6801130465972118,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.392,
+          "loss": 1.6787603715896606
+        }
+      }
+    },
+    {
+      "train_loss": 1.4625232484605577,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.4446,
+          "loss": 1.4920329621315003
+        }
+      }
+    },
+    {
+      "train_loss": 1.2929001020909714,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.5054,
+          "loss": 1.3454743724822997
+        }
+      }
+    },
+    {
+      "train_loss": 1.1405189500914679,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.5394,
+          "loss": 1.2634364483833314
+        }
+      }
+    }
+  ],
+  "selection_results": {
+    "2": {
+      "depth": 2,
+      "loss": 1.2634364483833314,
+      "accuracy": 0.5394,
+      "metric_name": "accuracy",
+      "metric_value": 0.5394,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 5000,
+      "aux_metrics": {
+        "accuracy": 0.5394
+      }
+    }
+  },
+  "cost_results": {
+    "2": {
+      "1": {
+        "depth": 2,
+        "latency_ms_p50": 6.298000022070482,
+        "latency_ms_p95": 22.10146000725217,
+        "throughput_items_per_s": 115.39970607117284,
+        "peak_memory_mb": 21.44140625,
+        "model_bytes": 823400,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      },
+      "32": {
+        "depth": 2,
+        "latency_ms_p50": 4.113749979296699,
+        "latency_ms_p95": 11.36467999604065,
+        "throughput_items_per_s": 7317.324150991759,
+        "peak_memory_mb": 29.263671875,
+        "model_bytes": 823400,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      }
+    }
+  },
+  "selection_spec": {
+    "quality_metric": "accuracy",
+    "cost_metric": "latency_ms_p50",
+    "target_kind": "relative",
+    "relative_to_full_accuracy_drop": 0.01,
+    "absolute_accuracy_target": null
+  },
+  "selection_target_value": 0.5394,
+  "selected_depth": 2,
+  "final_results": {
+    "2": {
+      "depth": 2,
+      "loss": 1.2406125274658204,
+      "accuracy": 0.5526,
+      "metric_name": "accuracy",
+      "metric_value": 0.5526,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 10000,
+      "aux_metrics": {
+        "accuracy": 0.5526
+      }
+    }
+  },
+  "final_costs": {
+    "1": {
+      "depth": 2,
+      "latency_ms_p50": 4.767250007716939,
+      "latency_ms_p95": 6.783710030140355,
+      "throughput_items_per_s": 203.72642812581302,
+      "peak_memory_mb": 22.2578125,
+      "model_bytes": 823400,
+      "latency_ms_p50_ci_low": null,
+      "latency_ms_p50_ci_high": null,
+      "latency_ms_p95_ci_low": null,
+      "latency_ms_p95_ci_high": null,
+      "benchmark_repeats": 1
+    },
+    "32": {
+      "depth": 2,
+      "latency_ms_p50": 4.469100007554516,
+      "latency_ms_p95": 6.524959989474155,
+      "throughput_items_per_s": 7035.348226730535,
+      "peak_memory_mb": 30.080078125,
+      "model_bytes": 823400,
+      "latency_ms_p50_ci_low": null,
+      "latency_ms_p50_ci_high": null,
+      "latency_ms_p95_ci_low": null,
+      "latency_ms_p95_ci_high": null,
+      "benchmark_repeats": 1
+    }
+  },
+  "baseline": {
+    "kind": "shallow_independent",
+    "target_depth": 2,
+    "head_fit_epochs": 3,
+    "head_fit_learning_rate": 0.001,
+    "distillation_alpha": 0.5,
+    "distillation_temperature": 2.0
+  },
+  "experiment": {
+    "name": "cifar10_resnet56_shallow_stage2",
+    "seed": 7,
+    "output_dir": "pods/results/raw/cifar10_resnet56_shallow_stage2",
+    "tags": [
+      "session1",
+      "cifar10",
+      "resnet56",
+      "shallow",
+      "stage2"
+    ],
+    "quality_bootstrap_samples": 0,
+    "confidence_level": 0.95
+  },
+  "task": {
+    "type": "image_classification",
+    "dataset": "cifar10",
+    "num_classes": 10,
+    "selection_fraction": 0.1,
+    "text_fields": [],
+    "max_length": 128,
+    "metric_name": "accuracy"
+  },
+  "model": {
+    "family": "resnet",
+    "candidate_depths": [
+      1,
+      2,
+      3
+    ],
+    "head_type": "linear",
+    "norm_type": "groupnorm",
+    "input_shape": [
+      3,
+      32,
+      32
+    ],
+    "hidden_dims": [],
+    "channels": [],
+    "groupnorm_groups": 8,
+    "variant": "resnet56",
+    "pretrained_model_name": null,
+    "dropout": 0.1
+  },
+  "training": {
+    "mode": "full_only",
+    "epochs": 5,
+    "batch_size": 128,
+    "optimiser": "sgd",
+    "learning_rate": 0.1,
+    "weight_decay": 0.0005,
+    "grad_clip": 1.0,
+    "mixed_precision": "none",
+    "weight_power": 1.0,
+    "num_middle_depths": 0,
+    "scheduler": "cosine",
+    "scheduler_t_max": 5,
+    "scheduler_milestones": [],
+    "scheduler_gamma": null,
+    "label_smoothing": 0.0,
+    "momentum": 0.9,
+    "num_workers": 2,
+    "pin_memory": true,
+    "persistent_workers": true,
+    "drop_last": true,
+    "gradient_accumulation_steps": 1,
+    "warmup_ratio": 0.0,
+    "max_train_steps": null,
+    "layerdrop_prob": 0.0,
+    "progressive_middle_depths": []
+  },
+  "benchmark": {
+    "batch_sizes": [
+      1,
+      32
+    ],
+    "selection_batch_size": 1,
+    "warmup_steps": 10,
+    "timed_steps": 30,
+    "repeat_runs": 1
+  },
+  "runtime": {
+    "python_version": "3.12.12 (main, Feb 12 2026, 00:40:26) [MSC v.1944 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "torch_version": "2.11.0+cu128",
+    "cuda_version": "12.8",
+    "cuda_available": true,
+    "device_type": "cuda",
+    "device_name": "NVIDIA GeForce RTX 5090",
+    "cudnn_deterministic": true,
+    "cudnn_benchmark": false
+  },
+  "evaluation_splits": {
+    "selection": "train_carved_selection",
+    "final_primary": "test"
+  },
+  "resolved_candidate_depths": [
+    2
+  ]
+}

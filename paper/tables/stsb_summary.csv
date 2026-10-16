@@ -1,0 +1,5 @@
+dataset,model,variant,num_runs,seeds,selected_depths,final_metric_mean,final_metric_std,final_primary_split,final_secondary_split
+stsb,bert,distilled_shallow_d2,1,7,2,0.3463621387683258,0.0,validation,
+stsb,bert,full,1,7,12,0.8764027402675121,0.0,validation,
+stsb,bert,pods_all,1,7,8,0.8733601794543562,0.0,validation,
+stsb,bert,pods_sandwich,1,7,10,0.871702464790165,0.0,validation,

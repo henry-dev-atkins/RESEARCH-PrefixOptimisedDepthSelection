@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import statistics
 import time
 from typing import Any
@@ -11,10 +10,10 @@ from torch import nn
 from pods.eval.select import PrefixCostResult
 
 
-def serialised_model_size_bytes(model: nn.Module) -> int:
-    buffer = io.BytesIO()
-    torch.save(model.state_dict(), buffer)
-    return buffer.getbuffer().nbytes
+def model_size_bytes(model: nn.Module) -> int:
+    """Return the bytes occupied by the tensors in a model state."""
+
+    return sum(tensor.numel() * tensor.element_size() for tensor in model.state_dict().values())
 
 
 @torch.no_grad()
@@ -67,6 +66,6 @@ def benchmark_prefix(
         latency_ms_p95_ci_high=None,
         throughput_items_per_s=throughput,
         peak_memory_mb=peak_memory_bytes / (1024 * 1024),
-        model_bytes=serialised_model_size_bytes(model),
+        model_bytes=model_size_bytes(model),
         benchmark_repeats=1,
     )

@@ -1,0 +1,84 @@
+experiment:
+  name: cifar10_resnet56_full
+  seed: 7
+  output_dir: pods/results/raw/cifar10_resnet56_full
+  tags:
+  - session1
+  - cifar10
+  - resnet56
+  - full
+  quality_bootstrap_samples: 0
+  confidence_level: 0.95
+task:
+  type: image_classification
+  dataset: cifar10
+  num_classes: 10
+  selection_fraction: 0.1
+  text_fields: []
+  max_length: 128
+  metric_name: accuracy
+model:
+  family: resnet
+  candidate_depths:
+  - 1
+  - 2
+  - 3
+  head_type: linear
+  norm_type: groupnorm
+  input_shape:
+  - 3
+  - 32
+  - 32
+  hidden_dims: []
+  channels: []
+  groupnorm_groups: 8
+  variant: resnet56
+  pretrained_model_name: null
+  dropout: 0.1
+training:
+  mode: full_only
+  epochs: 5
+  batch_size: 128
+  optimiser: sgd
+  learning_rate: 0.1
+  weight_decay: 0.0005
+  grad_clip: 1.0
+  mixed_precision: none
+  weight_power: 1.0
+  num_middle_depths: 0
+  scheduler: cosine
+  scheduler_t_max: 5
+  scheduler_milestones: []
+  scheduler_gamma: null
+  label_smoothing: 0.0
+  momentum: 0.9
+  num_workers: 2
+  pin_memory: true
+  persistent_workers: true
+  drop_last: true
+  gradient_accumulation_steps: 1
+  warmup_ratio: 0.0
+  max_train_steps: null
+  layerdrop_prob: 0.0
+  progressive_middle_depths: []
+selection:
+  quality_metric: accuracy
+  cost_metric: latency_ms_p50
+  target_kind: relative
+  relative_accuracy_drop: 0.01
+  absolute_accuracy_target: null
+benchmark:
+  batch_sizes:
+  - 1
+  - 32
+  selection_batch_size: 1
+  warmup_steps: 10
+  timed_steps: 30
+  repeat_runs: 1
+baseline:
+  kind: full
+  target_depth: null
+  head_fit_epochs: 3
+  head_fit_learning_rate: 0.001
+  distillation_alpha: 0.5
+  distillation_temperature: 2.0

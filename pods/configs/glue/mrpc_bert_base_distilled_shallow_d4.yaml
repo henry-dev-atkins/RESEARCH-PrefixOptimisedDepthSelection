@@ -69,6 +69,5 @@ baseline:
   target_depth: 4
   head_fit_epochs: 3
   head_fit_learning_rate: 0.001
-  teacher_output_dir: pods/results/raw/mrpc_bert_base_full
   distillation_alpha: 0.5
   distillation_temperature: 2.0

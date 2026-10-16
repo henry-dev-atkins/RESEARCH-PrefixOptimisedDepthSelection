@@ -58,6 +58,5 @@ benchmark:
 baseline:
   kind: distilled_shallow
   target_depth: 2
-  teacher_output_dir: pods/results/raw/sst2_bert_base_full
   distillation_alpha: 0.5
   distillation_temperature: 2.0

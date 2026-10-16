@@ -1,0 +1,357 @@
+{
+  "history": [
+    {
+      "train_loss": 0.5813693355247018,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.30517711171662126,
+          "loss": 0.8060744308970604
+        },
+        "4": {
+          "accuracy": 0.553133514986376,
+          "loss": 0.6837858127313349
+        },
+        "6": {
+          "accuracy": 0.6948228882833788,
+          "loss": 0.6614045901909187
+        },
+        "8": {
+          "accuracy": 0.4877384196185286,
+          "loss": 0.7020040896672969
+        },
+        "10": {
+          "accuracy": 0.3079019073569482,
+          "loss": 0.9302463271637379
+        },
+        "12": {
+          "accuracy": 0.7465940054495913,
+          "loss": 0.5483420044589757
+        }
+      }
+    },
+    {
+      "train_loss": 0.40298204188761505,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.30517711171662126,
+          "loss": 0.7968181381433471
+        },
+        "4": {
+          "accuracy": 0.5858310626702997,
+          "loss": 0.6796942796629196
+        },
+        "6": {
+          "accuracy": 0.6948228882833788,
+          "loss": 0.6551814806883601
+        },
+        "8": {
+          "accuracy": 0.45231607629427795,
+          "loss": 0.7137617350274276
+        },
+        "10": {
+          "accuracy": 0.3079019073569482,
+          "loss": 1.1262383396034346
+        },
+        "12": {
+          "accuracy": 0.7874659400544959,
+          "loss": 0.5504778665807657
+        }
+      }
+    },
+    {
+      "train_loss": 0.21478139393139575,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.30517711171662126,
+          "loss": 0.8059189092235929
+        },
+        "4": {
+          "accuracy": 0.5967302452316077,
+          "loss": 0.6772646657127775
+        },
+        "6": {
+          "accuracy": 0.6948228882833788,
+          "loss": 0.6496802480734012
+        },
+        "8": {
+          "accuracy": 0.4305177111716621,
+          "loss": 0.7332183099897421
+        },
+        "10": {
+          "accuracy": 0.3079019073569482,
+          "loss": 1.077950269714688
+        },
+        "12": {
+          "accuracy": 0.779291553133515,
+          "loss": 0.6607960374868533
+        }
+      }
+    },
+    {
+      "train_loss": 0.0832883036798901,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.30517711171662126,
+          "loss": 0.8031322598782158
+        },
+        "4": {
+          "accuracy": 0.6049046321525886,
+          "loss": 0.6732794478413844
+        },
+        "6": {
+          "accuracy": 0.6948228882833788,
+          "loss": 0.6514368499007472
+        },
+        "8": {
+          "accuracy": 0.4250681198910082,
+          "loss": 0.7402273250860479
+        },
+        "10": {
+          "accuracy": 0.30517711171662126,
+          "loss": 1.1020914930088967
+        },
+        "12": {
+          "accuracy": 0.7901907356948229,
+          "loss": 0.7604443964012962
+        }
+      }
+    },
+    {
+      "train_loss": 0.03924862496050947,
+      "val_metrics_by_depth": {
+        "2": {
+          "accuracy": 0.30517711171662126,
+          "loss": 0.8038920472688181
+        },
+        "4": {
+          "accuracy": 0.5994550408719346,
+          "loss": 0.6740088579765132
+        },
+        "6": {
+          "accuracy": 0.6948228882833788,
+          "loss": 0.6514506638862132
+        },
+        "8": {
+          "accuracy": 0.43869209809264303,
+          "loss": 0.7354723101415817
+        },
+        "10": {
+          "accuracy": 0.3079019073569482,
+          "loss": 1.0930529784116823
+        },
+        "12": {
+          "accuracy": 0.7983651226158038,
+          "loss": 0.831278116262089
+        }
+      }
+    }
+  ],
+  "selection_results": {
+    "12": {
+      "depth": 12,
+      "loss": 0.831278116262089,
+      "accuracy": 0.7983651226158038,
+      "metric_name": "accuracy",
+      "metric_value": 0.7983651226158038,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 367,
+      "aux_metrics": {
+        "accuracy": 0.7983651226158038,
+        "matthews_correlation": 0.5041177429342837
+      }
+    }
+  },
+  "cost_results": {
+    "12": {
+      "1": {
+        "depth": 12,
+        "latency_ms_p50": 4.719550022855401,
+        "latency_ms_p95": 5.062910009291954,
+        "throughput_items_per_s": 211.3707603624481,
+        "peak_memory_mb": 858.56689453125,
+        "model_bytes": 437941256,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      },
+      "8": {
+        "depth": 12,
+        "latency_ms_p50": 6.33165001636371,
+        "latency_ms_p95": 6.745525004225783,
+        "throughput_items_per_s": 1250.3184407526553,
+        "peak_memory_mb": 876.73095703125,
+        "model_bytes": 437941256,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      }
+    }
+  },
+  "selection_spec": {
+    "quality_metric": "accuracy",
+    "cost_metric": "latency_ms_p50",
+    "target_kind": "relative",
+    "relative_to_full_accuracy_drop": 0.01,
+    "absolute_accuracy_target": null
+  },
+  "selection_target_value": 0.7983651226158038,
+  "selected_depth": 12,
+  "final_results": {
+    "12": {
+      "depth": 12,
+      "loss": 0.752533043552117,
+      "accuracy": 0.821078431372549,
+      "metric_name": "accuracy",
+      "metric_value": 0.821078431372549,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 408,
+      "aux_metrics": {
+        "accuracy": 0.821078431372549,
+        "matthews_correlation": 0.5663079213309208
+      }
+    }
+  },
+  "final_costs": {
+    "1": {
+      "depth": 12,
+      "latency_ms_p50": 4.679249977925792,
+      "latency_ms_p95": 4.857605017605238,
+      "throughput_items_per_s": 213.19506923057523,
+      "peak_memory_mb": 1277.30859375,
+      "model_bytes": 437941256,
+      "latency_ms_p50_ci_low": null,
+      "latency_ms_p50_ci_high": null,
+      "latency_ms_p95_ci_low": null,
+      "latency_ms_p95_ci_high": null,
+      "benchmark_repeats": 1
+    },
+    "8": {
+      "depth": 12,
+      "latency_ms_p50": 6.25304999994114,
+      "latency_ms_p95": 6.716770003549755,
+      "throughput_items_per_s": 1264.6795034257746,
+      "peak_memory_mb": 1295.47265625,
+      "model_bytes": 437941256,
+      "latency_ms_p50_ci_low": null,
+      "latency_ms_p50_ci_high": null,
+      "latency_ms_p95_ci_low": null,
+      "latency_ms_p95_ci_high": null,
+      "benchmark_repeats": 1
+    }
+  },
+  "baseline": {
+    "kind": "full",
+    "target_depth": null,
+    "head_fit_epochs": 3,
+    "head_fit_learning_rate": 0.001,
+    "distillation_alpha": 0.5,
+    "distillation_temperature": 2.0
+  },
+  "experiment": {
+    "name": "mrpc_bert_base_full",
+    "seed": 7,
+    "output_dir": "pods/results/raw/mrpc_bert_base_full",
+    "tags": [
+      "session2",
+      "glue",
+      "mrpc",
+      "bert-base",
+      "full"
+    ],
+    "quality_bootstrap_samples": 0,
+    "confidence_level": 0.95
+  },
+  "task": {
+    "type": "text_classification",
+    "dataset": "mrpc",
+    "num_classes": 2,
+    "selection_fraction": 0.1,
+    "text_fields": [
+      "sentence1",
+      "sentence2"
+    ],
+    "max_length": 128,
+    "metric_name": "accuracy"
+  },
+  "model": {
+    "family": "bert",
+    "candidate_depths": [
+      2,
+      4,
+      6,
+      8,
+      10,
+      12
+    ],
+    "head_type": "bert_cls",
+    "norm_type": "none",
+    "input_shape": null,
+    "hidden_dims": [],
+    "channels": [],
+    "groupnorm_groups": 8,
+    "variant": null,
+    "pretrained_model_name": "bert-base-uncased",
+    "dropout": 0.1
+  },
+  "training": {
+    "mode": "full_only",
+    "epochs": 5,
+    "batch_size": 16,
+    "optimiser": "adamw",
+    "learning_rate": 2e-05,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "mixed_precision": "bf16",
+    "weight_power": 1.0,
+    "num_middle_depths": 0,
+    "scheduler": "cosine",
+    "scheduler_t_max": 5,
+    "scheduler_milestones": [],
+    "scheduler_gamma": null,
+    "label_smoothing": 0.0,
+    "momentum": 0.9,
+    "num_workers": 0,
+    "pin_memory": true,
+    "persistent_workers": false,
+    "drop_last": false,
+    "gradient_accumulation_steps": 2,
+    "warmup_ratio": 0.1,
+    "max_train_steps": null,
+    "layerdrop_prob": 0.0,
+    "progressive_middle_depths": []
+  },
+  "benchmark": {
+    "batch_sizes": [
+      1,
+      8
+    ],
+    "selection_batch_size": 1,
+    "warmup_steps": 10,
+    "timed_steps": 30,
+    "repeat_runs": 1
+  },
+  "runtime": {
+    "python_version": "3.12.12 (main, Feb 12 2026, 00:40:26) [MSC v.1944 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "torch_version": "2.11.0+cu128",
+    "cuda_version": "12.8",
+    "cuda_available": true,
+    "device_type": "cuda",
+    "device_name": "NVIDIA GeForce RTX 5090",
+    "cudnn_deterministic": true,
+    "cudnn_benchmark": false
+  },
+  "evaluation_splits": {
+    "selection": "train_carved_selection",
+    "final_primary": "validation"
+  },
+  "resolved_candidate_depths": [
+    12
+  ]
+}

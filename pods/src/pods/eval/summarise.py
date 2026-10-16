@@ -114,6 +114,7 @@ def summarise_results(raw_root: Path) -> dict[str, Any]:
             "selected_depths": [run["selected_depth"] for run in runs],
             "selection_quality_metric": runs[0].get("selection_spec", {}).get("quality_metric"),
             "selection_cost_metric": runs[0].get("selection_spec", {}).get("cost_metric"),
+            "evaluation_splits": runs[0].get("evaluation_splits", {}),
             "task_metric_name": task_metric_name,
             "final_metric_mean": mean(final_metric_values),
             "final_metric_std": pstdev(final_metric_values) if len(final_metric_values) > 1 else 0.0,

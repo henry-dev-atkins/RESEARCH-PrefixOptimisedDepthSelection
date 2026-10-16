@@ -1,0 +1,269 @@
+{
+  "history": [
+    {
+      "train_loss": 2.171117740832729,
+      "val_metrics_by_depth": {
+        "2": {
+          "depth": 2,
+          "loss": 1.9738884735107423,
+          "accuracy": null,
+          "metric_name": "spearman_correlation",
+          "metric_value": 0.23605288504845243,
+          "metric_ci_low": null,
+          "metric_ci_high": null,
+          "num_examples": 575,
+          "aux_metrics": {
+            "spearman_correlation": 0.23605288504845243,
+            "pearson_correlation": 0.2695534611010879
+          }
+        }
+      }
+    },
+    {
+      "train_loss": 1.762639308049355,
+      "val_metrics_by_depth": {
+        "2": {
+          "depth": 2,
+          "loss": 1.920362721318784,
+          "accuracy": null,
+          "metric_name": "spearman_correlation",
+          "metric_value": 0.3166462152328786,
+          "metric_ci_low": null,
+          "metric_ci_high": null,
+          "num_examples": 575,
+          "aux_metrics": {
+            "spearman_correlation": 0.3166462152328786,
+            "pearson_correlation": 0.3437910433737726
+          }
+        }
+      }
+    },
+    {
+      "train_loss": 1.4390490246407779,
+      "val_metrics_by_depth": {
+        "2": {
+          "depth": 2,
+          "loss": 1.8454467093426248,
+          "accuracy": null,
+          "metric_name": "spearman_correlation",
+          "metric_value": 0.4097276311306637,
+          "metric_ci_low": null,
+          "metric_ci_high": null,
+          "num_examples": 575,
+          "aux_metrics": {
+            "spearman_correlation": 0.4097276311306637,
+            "pearson_correlation": 0.44490040221773336
+          }
+        }
+      }
+    }
+  ],
+  "selection_results": {
+    "2": {
+      "depth": 2,
+      "loss": 1.8454467093426248,
+      "accuracy": null,
+      "metric_name": "spearman_correlation",
+      "metric_value": 0.4097276311306637,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 575,
+      "aux_metrics": {
+        "spearman_correlation": 0.4097276311306637,
+        "pearson_correlation": 0.44490040221773336
+      }
+    }
+  },
+  "cost_results": {
+    "2": {
+      "1": {
+        "depth": 2,
+        "latency_ms_p50": 1.8972000107169151,
+        "latency_ms_p95": 3.8201650080736727,
+        "throughput_items_per_s": 500.0199995164302,
+        "peak_memory_mb": 1155.966796875,
+        "model_bytes": 154423300,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      },
+      "8": {
+        "depth": 2,
+        "latency_ms_p50": 2.6513000193517655,
+        "latency_ms_p95": 3.58915998658631,
+        "throughput_items_per_s": 2976.74048955306,
+        "peak_memory_mb": 1171.0087890625,
+        "model_bytes": 154423300,
+        "latency_ms_p50_ci_low": null,
+        "latency_ms_p50_ci_high": null,
+        "latency_ms_p95_ci_low": null,
+        "latency_ms_p95_ci_high": null,
+        "benchmark_repeats": 1
+      }
+    }
+  },
+  "selection_spec": {
+    "quality_metric": "spearman_correlation",
+    "cost_metric": "latency_ms_p50",
+    "target_kind": "relative",
+    "relative_to_full_accuracy_drop": 0.01,
+    "absolute_accuracy_target": null
+  },
+  "selection_target_value": 0.4097276311306637,
+  "selected_depth": 2,
+  "final_results": {
+    "2": {
+      "depth": 2,
+      "loss": 2.2974469089508056,
+      "accuracy": null,
+      "metric_name": "spearman_correlation",
+      "metric_value": 0.3463621387683258,
+      "metric_ci_low": null,
+      "metric_ci_high": null,
+      "num_examples": 1500,
+      "aux_metrics": {
+        "spearman_correlation": 0.3463621387683258,
+        "pearson_correlation": 0.3533872851217765
+      }
+    }
+  },
+  "final_costs": {
+    "1": {
+      "depth": 2,
+      "latency_ms_p50": 1.5232000150717795,
+      "latency_ms_p95": 3.008959995349869,
+      "throughput_items_per_s": 579.5432814685374,
+      "peak_memory_mb": 1304.32470703125,
+      "model_bytes": 154423300,
+      "latency_ms_p50_ci_low": null,
+      "latency_ms_p50_ci_high": null,
+      "latency_ms_p95_ci_low": null,
+      "latency_ms_p95_ci_high": null,
+      "benchmark_repeats": 1
+    },
+    "8": {
+      "depth": 2,
+      "latency_ms_p50": 2.473349974025041,
+      "latency_ms_p95": 4.667594988131896,
+      "throughput_items_per_s": 3003.1495524276697,
+      "peak_memory_mb": 1319.36669921875,
+      "model_bytes": 154423300,
+      "latency_ms_p50_ci_low": null,
+      "latency_ms_p50_ci_high": null,
+      "latency_ms_p95_ci_low": null,
+      "latency_ms_p95_ci_high": null,
+      "benchmark_repeats": 1
+    }
+  },
+  "baseline": {
+    "kind": "distilled_shallow",
+    "target_depth": 2,
+    "head_fit_epochs": 3,
+    "head_fit_learning_rate": 0.001,
+    "distillation_alpha": 0.5,
+    "distillation_temperature": 2.0
+  },
+  "experiment": {
+    "name": "stsb_bert_base_distilled_shallow_d2",
+    "seed": 7,
+    "output_dir": "pods/results/raw/stsb_bert_base_distilled_shallow_d2",
+    "tags": [
+      "glue",
+      "stsb",
+      "bert-base",
+      "distilled-shallow",
+      "d2"
+    ],
+    "quality_bootstrap_samples": 0,
+    "confidence_level": 0.95
+  },
+  "task": {
+    "type": "text_regression",
+    "dataset": "stsb",
+    "num_classes": 1,
+    "selection_fraction": 0.1,
+    "text_fields": [
+      "sentence1",
+      "sentence2"
+    ],
+    "max_length": 128,
+    "metric_name": "spearman_correlation"
+  },
+  "model": {
+    "family": "bert",
+    "candidate_depths": [
+      2,
+      4,
+      6,
+      8,
+      10,
+      12
+    ],
+    "head_type": "bert_cls",
+    "norm_type": "none",
+    "input_shape": null,
+    "hidden_dims": [],
+    "channels": [],
+    "groupnorm_groups": 8,
+    "variant": null,
+    "pretrained_model_name": "bert-base-uncased",
+    "dropout": 0.1
+  },
+  "training": {
+    "mode": "full_only",
+    "epochs": 3,
+    "batch_size": 16,
+    "optimiser": "adamw",
+    "learning_rate": 2e-05,
+    "weight_decay": 0.01,
+    "grad_clip": 1.0,
+    "mixed_precision": "bf16",
+    "weight_power": 1.0,
+    "num_middle_depths": 0,
+    "scheduler": "cosine",
+    "scheduler_t_max": 3,
+    "scheduler_milestones": [],
+    "scheduler_gamma": null,
+    "label_smoothing": 0.0,
+    "momentum": 0.9,
+    "num_workers": 0,
+    "pin_memory": true,
+    "persistent_workers": false,
+    "drop_last": false,
+    "gradient_accumulation_steps": 2,
+    "warmup_ratio": 0.1,
+    "max_train_steps": null,
+    "layerdrop_prob": 0.0,
+    "progressive_middle_depths": []
+  },
+  "benchmark": {
+    "batch_sizes": [
+      1,
+      8
+    ],
+    "selection_batch_size": 1,
+    "warmup_steps": 10,
+    "timed_steps": 30,
+    "repeat_runs": 1
+  },
+  "runtime": {
+    "python_version": "3.12.12 (main, Feb 12 2026, 00:40:26) [MSC v.1944 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "torch_version": "2.11.0+cu128",
+    "cuda_version": "12.8",
+    "cuda_available": true,
+    "device_type": "cuda",
+    "device_name": "NVIDIA GeForce RTX 5090",
+    "cudnn_deterministic": true,
+    "cudnn_benchmark": false
+  },
+  "evaluation_splits": {
+    "selection": "train_carved_selection",
+    "final_primary": "validation"
+  },
+  "resolved_candidate_depths": [
+    2
+  ]
+}

@@ -26,7 +26,7 @@ $$
 w_d = \left(\frac{d}{d_{\max}}\right)^p.
 $$
 
-Training uses the training split. A seeded validation split is used to compare prefixes. The test split is held back for final reporting. For each candidate depth, the experiment records a quality value \(q(d)\) and a measured deployment cost \(c(d)\), such as latency, peak memory, throughput, or serialised model size.
+Training uses the training split. A seeded validation split is used to compare prefixes. The test split is held back for final reporting. For each candidate depth, the experiment records a quality value \(q(d)\) and a measured deployment cost \(c(d)\), such as latency, peak memory, throughput, or tensor model size.
 
 The default selection rule chooses the cheapest measured prefix that remains within an allowed quality drop from the full model:
 
@@ -140,8 +140,18 @@ uv run python -m pods.eval.review_figures
 Export manuscript-ready summary tables from processed summaries with:
 
 ```bash
-uv run python -m pods.eval.export_paper_assets
+uv run python -m pods.eval.export_paper_assets --output-root paper
 ```
+
+Generate paper-ready vector and raster figures with:
+
+```bash
+uv run python -m pods.eval.review_figures --output-root paper/figures --formats png,svg,pdf --dpi 300
+```
+
+The publication scope is CIFAR-10 and the eight configured GLUE tasks. CIFAR-100 is deferred from the default package.
+
+The generated package is documented in [paper/README.md](paper/README.md).
 
 Diff the tracked GLUE config surface against completed raw runs with:
 

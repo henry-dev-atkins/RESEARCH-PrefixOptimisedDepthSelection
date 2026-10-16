@@ -18,8 +18,6 @@ class ExperimentConfig:
     seed: int
     output_dir: str
     tags: tuple[str, ...] = ()
-    save_model: bool = True
-    save_selected_prefix: bool = True
     quality_bootstrap_samples: int = 0
     confidence_level: float = 0.95
 
@@ -103,7 +101,6 @@ class BaselineConfig:
     target_depth: int | None = None
     head_fit_epochs: int = 3
     head_fit_learning_rate: float = 0.001
-    teacher_output_dir: str | None = None
     distillation_alpha: float = 0.5
     distillation_temperature: float = 2.0
 
@@ -137,6 +134,19 @@ def load_config(path: str | Path) -> PodsConfig:
     if not isinstance(data, dict):
         raise ValueError("Config root must be a mapping")
 
+    removed_keys = {
+        "experiment.save_model",
+        "experiment.save_selected_prefix",
+        "baseline.teacher_output_dir",
+    }
+    for section_name, section_data in data.items():
+        if not isinstance(section_data, dict):
+            continue
+        for key in section_data:
+            qualified_key = f"{section_name}.{key}"
+            if qualified_key in removed_keys:
+                raise ValueError(f"removed checkpoint configuration key: {qualified_key}")
+
     experiment_data = data["experiment"]
     task_data = data["task"]
     model_data = data["model"]
@@ -154,8 +164,6 @@ def load_config(path: str | Path) -> PodsConfig:
             seed=int(experiment_data["seed"]),
             output_dir=experiment_data["output_dir"],
             tags=tuple(experiment_data.get("tags", [])),
-            save_model=bool(experiment_data.get("save_model", True)),
-            save_selected_prefix=bool(experiment_data.get("save_selected_prefix", True)),
             quality_bootstrap_samples=int(experiment_data.get("quality_bootstrap_samples", 0)),
             confidence_level=float(experiment_data.get("confidence_level", 0.95)),
         ),
@@ -230,7 +238,6 @@ def load_config(path: str | Path) -> PodsConfig:
             target_depth=baseline_data.get("target_depth"),
             head_fit_epochs=int(baseline_data.get("head_fit_epochs", 3)),
             head_fit_learning_rate=float(baseline_data.get("head_fit_learning_rate", 0.001)),
-            teacher_output_dir=baseline_data.get("teacher_output_dir"),
             distillation_alpha=float(baseline_data.get("distillation_alpha", 0.5)),
             distillation_temperature=float(baseline_data.get("distillation_temperature", 2.0)),
         ),
@@ -325,8 +332,6 @@ def _validate_config(config: PodsConfig) -> None:
     if config.baseline.kind in {"shallow_independent", "distilled_shallow"}:
         _ensure(config.baseline.target_depth is not None, "baseline.target_depth is required for shallow_independent")
         _ensure(config.baseline.target_depth in config.model.candidate_depths, "baseline.target_depth must be one of model.candidate_depths")
-    if config.baseline.kind == "distilled_shallow":
-        _ensure(config.baseline.teacher_output_dir is not None, "baseline.teacher_output_dir is required for distilled_shallow")
     if config.baseline.kind == "progressive_shrinking":
         _ensure(config.training.mode == "progressive_sandwich", "progressive_shrinking requires training.mode='progressive_sandwich'")
     if config.baseline.kind in {"pods", "full", "naive_truncation", "layerdrop", "progressive_shrinking"}:

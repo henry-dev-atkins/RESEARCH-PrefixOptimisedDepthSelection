@@ -10,6 +10,7 @@ from pods.eval.review_figures import (
     generate_review_figures,
     load_processed_summaries,
 )
+from pods.eval.paper_scope import PAPER_DATASETS
 
 
 def _make_summary_entry(dataset: str, variant: str, final_metric_mean: float, selected_depths: list[int]) -> tuple[str, dict[str, object]]:
@@ -63,6 +64,10 @@ def test_load_processed_summaries_reads_variant_entries(tmp_path) -> None:
 
     assert summaries["qqp"]["pods_all"].selected_depths == [8, 8, 8]
     assert summaries["qqp"]["pods_all"].metric_name == "accuracy"
+
+
+def test_default_figure_scope_excludes_deferred_datasets() -> None:
+    assert "cifar100" not in PAPER_DATASETS
 
 
 def test_best_pods_variant_prefers_shallower_depth_on_metric_tie(tmp_path) -> None:
@@ -132,8 +137,10 @@ def test_generate_review_figures_handles_partial_dataset_coverage_and_new_varian
         },
     )
 
-    generate_review_figures(processed_root, output_root, ["stsb"], ["png"])
+    generate_review_figures(processed_root, output_root, ["stsb"], ["png", "svg", "pdf"])
 
     assert (output_root / "manifest.json").exists()
     assert (output_root / "frontiers" / "stsb_frontier.png").exists()
+    assert (output_root / "frontiers" / "stsb_frontier.svg").exists()
+    assert (output_root / "frontiers" / "stsb_frontier.pdf").exists()
     assert (output_root / "overview" / "task_outcome_grid.png").exists()

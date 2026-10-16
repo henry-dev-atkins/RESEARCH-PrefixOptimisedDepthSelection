@@ -1,0 +1,4 @@
+dataset,model,variant,num_runs,seeds,selected_depths,final_metric_mean,final_metric_std,final_primary_split,final_secondary_split
+mrpc,bert,full,1,7,12,0.821078431372549,0.0,validation,
+mrpc,bert,pods_all,1,7,6,0.7916666666666666,0.0,validation,
+mrpc,bert,pods_sandwich,1,7,12,0.8137254901960784,0.0,validation,

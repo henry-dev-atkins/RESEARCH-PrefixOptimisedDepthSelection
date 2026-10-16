@@ -1,0 +1,132 @@
+{
+  "overview_rows": [
+    {
+      "dataset": "cifar10",
+      "best_pods": "pods_all",
+      "delta_vs_full": -0.027799999999999936,
+      "delta_vs_naive": -0.027799999999999936,
+      "selected_depth": "d3",
+      "verdict": "mixed"
+    },
+    {
+      "dataset": "sst2",
+      "best_pods": "pods_sandwich",
+      "delta_vs_full": -0.032110091743119185,
+      "delta_vs_naive": NaN,
+      "selected_depth": "d6",
+      "verdict": "loss"
+    },
+    {
+      "dataset": "mrpc",
+      "best_pods": "pods_sandwich",
+      "delta_vs_full": -0.007352941176470562,
+      "delta_vs_naive": NaN,
+      "selected_depth": "d12",
+      "verdict": "loss"
+    },
+    {
+      "dataset": "rte",
+      "best_pods": "pods_all",
+      "delta_vs_full": 0.028880866425992857,
+      "delta_vs_naive": NaN,
+      "selected_depth": "d8",
+      "verdict": "clear win"
+    },
+    {
+      "dataset": "qqp",
+      "best_pods": "pods_sandwich",
+      "delta_vs_full": 2.4734108335366933e-05,
+      "delta_vs_naive": NaN,
+      "selected_depth": "d12",
+      "verdict": "loss"
+    },
+    {
+      "dataset": "qnli",
+      "best_pods": "pods_sandwich",
+      "delta_vs_full": 0.0009152480322167644,
+      "delta_vs_naive": NaN,
+      "selected_depth": "d12",
+      "verdict": "loss"
+    },
+    {
+      "dataset": "cola",
+      "best_pods": "pods_all",
+      "delta_vs_full": -0.0016694092535223248,
+      "delta_vs_naive": NaN,
+      "selected_depth": "d10",
+      "verdict": "loss"
+    },
+    {
+      "dataset": "stsb",
+      "best_pods": "pods_all",
+      "delta_vs_full": -0.0030425608131559034,
+      "delta_vs_naive": NaN,
+      "selected_depth": "d8",
+      "verdict": "loss"
+    },
+    {
+      "dataset": "mnli",
+      "best_pods": "pods_sandwich",
+      "delta_vs_full": 0.001935812531839054,
+      "delta_vs_naive": NaN,
+      "selected_depth": "d12",
+      "verdict": "loss"
+    }
+  ],
+  "formats": [
+    "png",
+    "svg",
+    "pdf"
+  ],
+  "assets": [
+    "paper\\figures\\frontiers\\cifar10_frontier.pdf",
+    "paper\\figures\\frontiers\\cifar10_frontier.png",
+    "paper\\figures\\frontiers\\cifar10_frontier.svg",
+    "paper\\figures\\frontiers\\cola_frontier.pdf",
+    "paper\\figures\\frontiers\\cola_frontier.png",
+    "paper\\figures\\frontiers\\cola_frontier.svg",
+    "paper\\figures\\frontiers\\mnli_frontier.pdf",
+    "paper\\figures\\frontiers\\mnli_frontier.png",
+    "paper\\figures\\frontiers\\mnli_frontier.svg",
+    "paper\\figures\\frontiers\\mrpc_frontier.pdf",
+    "paper\\figures\\frontiers\\mrpc_frontier.png",
+    "paper\\figures\\frontiers\\mrpc_frontier.svg",
+    "paper\\figures\\frontiers\\qnli_frontier.pdf",
+    "paper\\figures\\frontiers\\qnli_frontier.png",
+    "paper\\figures\\frontiers\\qnli_frontier.svg",
+    "paper\\figures\\frontiers\\qqp_frontier.pdf",
+    "paper\\figures\\frontiers\\qqp_frontier.png",
+    "paper\\figures\\frontiers\\qqp_frontier.svg",
+    "paper\\figures\\frontiers\\rte_frontier.pdf",
+    "paper\\figures\\frontiers\\rte_frontier.png",
+    "paper\\figures\\frontiers\\rte_frontier.svg",
+    "paper\\figures\\frontiers\\sst2_frontier.pdf",
+    "paper\\figures\\frontiers\\sst2_frontier.png",
+    "paper\\figures\\frontiers\\sst2_frontier.svg",
+    "paper\\figures\\frontiers\\stsb_frontier.pdf",
+    "paper\\figures\\frontiers\\stsb_frontier.png",
+    "paper\\figures\\frontiers\\stsb_frontier.svg",
+    "paper\\figures\\milestone4\\m4_baseline_comparison.pdf",
+    "paper\\figures\\milestone4\\m4_baseline_comparison.png",
+    "paper\\figures\\milestone4\\m4_baseline_comparison.svg",
+    "paper\\figures\\milestone4\\m4_main_variants_panel.pdf",
+    "paper\\figures\\milestone4\\m4_main_variants_panel.png",
+    "paper\\figures\\milestone4\\m4_main_variants_panel.svg",
+    "paper\\figures\\milestone4\\selected_depths.pdf",
+    "paper\\figures\\milestone4\\selected_depths.png",
+    "paper\\figures\\milestone4\\selected_depths.svg",
+    "paper\\figures\\overview\\pods_flow_diagram.pdf",
+    "paper\\figures\\overview\\pods_flow_diagram.png",
+    "paper\\figures\\overview\\pods_flow_diagram.svg",
+    "paper\\figures\\overview\\task_outcome_grid.pdf",
+    "paper\\figures\\overview\\task_outcome_grid.png",
+    "paper\\figures\\overview\\task_outcome_grid.svg",
+    "paper\\figures\\tradeoffs\\depth_vs_metric_glue.pdf",
+    "paper\\figures\\tradeoffs\\depth_vs_metric_glue.png",
+    "paper\\figures\\tradeoffs\\depth_vs_metric_glue.svg",
+    "paper\\figures\\tradeoffs\\pareto_core_comparators_latency_new_tasks.pdf",
+    "paper\\figures\\tradeoffs\\pareto_core_comparators_latency_new_tasks.png",
+    "paper\\figures\\tradeoffs\\pareto_core_comparators_latency_new_tasks.svg"
+  ],
+  "output_root": "paper\\figures"
+}

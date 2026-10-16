@@ -9,7 +9,7 @@ import torch
 from torch import optim
 from torch.utils.data import DataLoader
 
-from pods.config.schema import PodsConfig, load_config
+from pods.config.schema import PodsConfig
 from pods.data.batches import move_batch_to_device
 from pods.data.datasets import build_image_dataset, build_text_datasets
 from pods.data.splits import DatasetSplit, make_split_indices
@@ -219,6 +219,20 @@ def compute_selection_target(selection_results, spec: SelectionSpec) -> float:
     return spec.absolute_accuracy_target
 
 
+def evaluation_split_metadata(config: PodsConfig) -> dict[str, str]:
+    """Describe the data split used for selection and final reported metrics."""
+
+    metadata = {
+        "selection": "train_carved_selection",
+        "final_primary": "test",
+    }
+    if config.task.type in {"text_classification", "text_regression"}:
+        metadata["final_primary"] = "validation_matched" if config.task.dataset == "mnli" else "validation"
+        if config.task.dataset == "mnli":
+            metadata["final_secondary"] = "validation_mismatched"
+    return metadata
+
+
 def fit_posthoc_head(
     model: PrefixCapableModel,
     depth: int,
@@ -250,75 +264,6 @@ def fit_posthoc_head(
 
     for parameter in model.parameters():
         parameter.requires_grad = True
-
-
-def _load_teacher_config(teacher_dir: Path) -> PodsConfig:
-    config_path = teacher_dir / "config.snapshot.yaml"
-    if not config_path.exists():
-        raise ValueError(f"Teacher run is missing config.snapshot.yaml: {config_path}")
-    return load_config(config_path)
-
-
-def _load_checkpoint_with_allowed_missing(
-    model: torch.nn.Module,
-    state_dict: dict[str, Any],
-    *,
-    allowed_missing_keys: tuple[str, ...] = (),
-) -> None:
-    incompatible = model.load_state_dict(state_dict, strict=False)
-    disallowed_missing = sorted(key for key in incompatible.missing_keys if key not in allowed_missing_keys)
-    unexpected = sorted(incompatible.unexpected_keys)
-    if disallowed_missing or unexpected:
-        message_parts = []
-        if disallowed_missing:
-            message_parts.append(f"missing keys: {disallowed_missing}")
-        if unexpected:
-            message_parts.append(f"unexpected keys: {unexpected}")
-        raise RuntimeError("Checkpoint state_dict is incompatible: " + "; ".join(message_parts))
-
-
-def load_teacher_model(config: PodsConfig, device: torch.device) -> PrefixCapableModel:
-    if config.baseline.teacher_output_dir is None:
-        raise ValueError("distilled_shallow requires baseline.teacher_output_dir")
-    teacher_dir = Path(config.baseline.teacher_output_dir)
-    state_path = teacher_dir / "model.pt"
-    if not state_path.exists():
-        raise ValueError(f"Teacher checkpoint is missing: {state_path}")
-    teacher_config = _load_teacher_config(teacher_dir)
-    if teacher_config.baseline.kind != "full":
-        raise ValueError(
-            f"Teacher run must be a full baseline, got baseline.kind={teacher_config.baseline.kind!r} in {teacher_dir}"
-        )
-    if teacher_config.task.type != config.task.type or teacher_config.task.dataset != config.task.dataset:
-        raise ValueError("Teacher task does not match distilled student task")
-    if teacher_config.task.num_classes != config.task.num_classes:
-        raise ValueError("Teacher num_classes does not match distilled student task")
-    if teacher_config.model.family != config.model.family:
-        raise ValueError("Teacher backbone family does not match distilled student backbone family")
-    if teacher_config.model.pretrained_model_name != config.model.pretrained_model_name:
-        raise ValueError("Teacher pretrained model does not match distilled student backbone")
-    if teacher_config.model.candidate_depths != config.model.candidate_depths:
-        raise ValueError("Teacher candidate depths do not match distilled student candidate depths")
-    if teacher_config.experiment.seed != config.experiment.seed:
-        raise ValueError("Teacher seed does not match distilled student seed")
-
-    teacher = build_model(teacher_config, target_depth=None)
-    allowed_missing_keys: tuple[str, ...] = ()
-    if teacher_config.model.family == "bert":
-        allowed_missing_keys = (
-            "backbone.pooler.dense.weight",
-            "backbone.pooler.dense.bias",
-        )
-    _load_checkpoint_with_allowed_missing(
-        teacher,
-        torch.load(state_path, map_location=device),
-        allowed_missing_keys=allowed_missing_keys,
-    )
-    teacher = teacher.to(device)
-    teacher.eval()
-    for parameter in teacher.parameters():
-        parameter.requires_grad = False
-    return teacher
 
 
 def train_distilled_student(
@@ -381,9 +326,48 @@ def train_distilled_student(
         history.append({"train_loss": running_loss / max(seen_batches, 1), "val_metrics_by_depth": {depth: asdict(result) for depth, result in val_results.items()}})
 
     if best_state is None:
-        raise RuntimeError("Distillation produced no checkpoint state")
+        raise RuntimeError("Distillation produced no best model state")
     student.load_state_dict(best_state)
     return student, history
+
+
+def _train_model(
+    config: PodsConfig,
+    model: PrefixCapableModel,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    device: torch.device,
+    mode: str | None = None,
+) -> tuple[PrefixCapableModel, list[dict[str, Any]]]:
+    """Train one model and restore its best validation state in memory."""
+
+    optimizer = build_optimizer(config, model)
+    rng = random.Random(config.experiment.seed)
+    model, loop_history = train_multidepth_model(
+        model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        optimizer=optimizer,
+        epochs=config.training.epochs,
+        mode=mode or config.training.mode,
+        num_middle_depths=config.training.num_middle_depths,
+        weight_power=config.training.weight_power,
+        device=device,
+        mixed_precision=config.training.mixed_precision,
+        label_smoothing=config.training.label_smoothing,
+        scheduler_name=config.training.scheduler,
+        scheduler_t_max=config.training.scheduler_t_max,
+        scheduler_milestones=config.training.scheduler_milestones,
+        scheduler_gamma=config.training.scheduler_gamma,
+        grad_clip=config.training.grad_clip,
+        gradient_accumulation_steps=config.training.gradient_accumulation_steps,
+        rng=rng,
+        progressive_middle_depths=config.training.progressive_middle_depths,
+        task_type=config.task.type,
+        metric_name=config.task.metric_name,
+    )
+    history = [{"train_loss": epoch.train_loss, "val_metrics_by_depth": epoch.val_metrics_by_depth} for epoch in loop_history]
+    return model, history
 
 
 def run_workflow(
@@ -392,42 +376,21 @@ def run_workflow(
     train_loader: DataLoader,
     val_loader: DataLoader,
     test_loader: DataLoader,
-    test_loader_secondary: DataLoader | None,
     selection_val_dataset,
     device: torch.device,
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    test_loader_secondary: DataLoader | None = None,
+) -> dict[str, Any]:
     benchmark_batches = build_benchmark_batches(selection_val_dataset, config.benchmark.batch_sizes, collate_fn=val_loader.collate_fn)
     if config.baseline.kind == "distilled_shallow":
-        teacher = load_teacher_model(config, device)
+        teacher = build_model(config, target_depth=None)
+        teacher, _ = _train_model(config, teacher, train_loader, val_loader, device, mode="full_only")
+        teacher.eval()
+        for parameter in teacher.parameters():
+            parameter.requires_grad = False
         model, distilled_history = train_distilled_student(config, model, teacher, train_loader, val_loader, device)
         history = distilled_history
     else:
-        optimizer = build_optimizer(config, model)
-        rng = random.Random(config.experiment.seed)
-        model, loop_history = train_multidepth_model(
-            model=model,
-            train_loader=train_loader,
-            val_loader=val_loader,
-            optimizer=optimizer,
-            epochs=config.training.epochs,
-            mode=config.training.mode,
-            num_middle_depths=config.training.num_middle_depths,
-            weight_power=config.training.weight_power,
-            device=device,
-            mixed_precision=config.training.mixed_precision,
-            label_smoothing=config.training.label_smoothing,
-            scheduler_name=config.training.scheduler,
-            scheduler_t_max=config.training.scheduler_t_max,
-            scheduler_milestones=config.training.scheduler_milestones,
-            scheduler_gamma=config.training.scheduler_gamma,
-            grad_clip=config.training.grad_clip,
-            gradient_accumulation_steps=config.training.gradient_accumulation_steps,
-            rng=rng,
-            progressive_middle_depths=config.training.progressive_middle_depths,
-            task_type=config.task.type,
-            metric_name=config.task.metric_name,
-        )
-        history = [{"train_loss": epoch.train_loss, "val_metrics_by_depth": epoch.val_metrics_by_depth} for epoch in loop_history]
+        model, history = _train_model(config, model, train_loader, val_loader, device)
 
     selection_spec = SelectionSpec(
         quality_metric=config.selection.quality_metric,
@@ -540,11 +503,12 @@ def run_workflow(
         "training": asdict(config.training),
         "benchmark": asdict(config.benchmark),
         "runtime": build_runtime_metadata(device),
+        "evaluation_splits": evaluation_split_metadata(config),
         "resolved_candidate_depths": list(candidate_depths),
     }
     if final_result_secondary is not None:
         results["final_results_secondary"] = {selected_depth: asdict(final_result_secondary)}
-    return results, model.state_dict(), selected_prefix.state_dict()
+    return results
 
 
 def run_experiment(config: PodsConfig) -> dict[str, Any]:
@@ -556,7 +520,7 @@ def run_experiment(config: PodsConfig) -> dict[str, Any]:
     target_depth = config.baseline.target_depth if config.baseline.kind in {"shallow_independent", "distilled_shallow"} else None
     model = build_model(config, target_depth=target_depth)
 
-    results, model_state, selected_prefix_state = run_workflow(
+    results = run_workflow(
         config=config,
         model=model,
         train_loader=train_loader,
@@ -568,7 +532,7 @@ def run_experiment(config: PodsConfig) -> dict[str, Any]:
     )
 
     output_dir = Path(config.experiment.output_dir)
-    save_raw_run(output_dir, config, results, model_state, selected_prefix_state)
+    save_raw_run(output_dir, config, results)
     processed = summarise_results(output_dir.parents[1] / "raw")
     processed_root = output_dir.parents[1] / "processed"
     write_processed_summary(processed_root / "run_index.json", processed)

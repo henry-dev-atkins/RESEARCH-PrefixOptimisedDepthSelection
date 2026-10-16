@@ -301,13 +301,19 @@ def test_config_accepts_distilled_shallow_baseline(tmp_path: Path) -> None:
     data["baseline"] = {
         "kind": "distilled_shallow",
         "target_depth": 2,
-        "teacher_output_dir": "pods/results/raw/sst2_bert_base_full",
         "distillation_alpha": 0.5,
         "distillation_temperature": 2.0,
     }
     config = load_config(_write_config(tmp_path, data))
     assert config.baseline.kind == "distilled_shallow"
-    assert config.baseline.teacher_output_dir is not None
+
+
+def test_config_rejects_removed_checkpoint_keys(tmp_path: Path) -> None:
+    data = _base_config()
+    data["experiment"]["save_model"] = True
+
+    with pytest.raises(ValueError, match="removed checkpoint configuration key"):
+        load_config(_write_config(tmp_path, data))
 
 
 def test_config_accepts_snapshot_style_null_input_shape_for_transformers(tmp_path: Path) -> None:

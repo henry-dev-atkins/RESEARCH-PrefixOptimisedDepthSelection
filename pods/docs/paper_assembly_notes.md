@@ -7,7 +7,8 @@ This document captures the current paper-facing interpretation surface while the
 Current paper assembly scope:
 
 - accepted BERT-first six-task evidence base
-- CIFAR support evidence
+- CIFAR-10 support evidence
+- CIFAR-100 deferred from the current package
 - new in-progress framework support for:
   - `stsb`
   - `mnli`
@@ -68,6 +69,15 @@ Generate the tracked review figure pack with:
 ```bash
 uv run python -m pods.eval.review_figures
 ```
+
+Generate the paper package with SVG and PDF vectors and 300 DPI PNG rasters:
+
+```bash
+uv run python -m pods.eval.review_figures --output-root paper/figures --datasets cifar10,sst2,mrpc,rte,qqp,qnli,cola,stsb,mnli --formats png,svg,pdf --dpi 300
+uv run python -m pods.eval.export_paper_assets --output-root paper --datasets cifar10,sst2,mrpc,rte,qqp,qnli,cola,stsb,mnli
+```
+
+The paper exporter fails when a required paper dataset or main variant is absent. GLUE final scores are labelled validation scores because the labelled GLUE evaluation data is the validation split. MNLI reports matched and mismatched validation separately.
 
 Default output root:
 
@@ -131,6 +141,7 @@ For a first manuscript pass, prioritise:
 ## Immediate Writing Next Steps
 
 1. Draft the abstract and introduction around the static-prefix framing.
-2. Build the results section around the tracked review figure shortlist.
-3. Write the discussion and limitations with the mixed result story stated directly.
-4. Only then decide whether any extra experiment scope is necessary.
+2. Lead the results section with the nine-dataset core-variant panel.
+3. Use measured frontiers and selected depths to explain deployment trade-offs.
+4. Write the discussion and limitations with the mixed result story stated directly.
+5. Keep CIFAR-100 and incomplete comparator coverage outside the default package.

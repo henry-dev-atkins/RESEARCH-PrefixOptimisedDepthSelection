@@ -1,0 +1,7 @@
+dataset,model,variant,depth,latency_ms_p50,peak_memory_mb,model_bytes
+cifar10,resnet,full,3,9.841699997195974,29.72607421875,3423080
+cifar10,resnet,naive_truncation,3,9.675150009570643,29.7294921875,3423080
+cifar10,resnet,pods_all,3,8.144550025463104,29.72607421875,3423080
+cifar10,resnet,pods_sandwich,3,8.245999983046204,29.72607421875,3423080
+cifar10,resnet,shallow_independent_d1,1,4.234450025251135,18.11669921875,170728
+cifar10,resnet,shallow_independent_d2,2,4.767250007716939,22.2578125,823400

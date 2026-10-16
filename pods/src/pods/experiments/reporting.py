@@ -27,14 +27,10 @@ def build_runtime_metadata(device: torch.device) -> dict[str, Any]:
     }
 
 
-def save_raw_run(output_dir: Path, config: PodsConfig, results: dict[str, Any], model_state: dict[str, Any] | None, selected_prefix_state: dict[str, Any] | None) -> None:
+def save_raw_run(output_dir: Path, config: PodsConfig, results: dict[str, Any]) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "results.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
     (output_dir / "config.snapshot.yaml").write_text(yaml.safe_dump(config_to_dict(config), sort_keys=False), encoding="utf-8")
-    if model_state is not None and config.experiment.save_model:
-        torch.save(model_state, output_dir / "model.pt")
-    if selected_prefix_state is not None and config.experiment.save_selected_prefix:
-        torch.save(selected_prefix_state, output_dir / "selected_prefix.pt")
 
 
 def write_processed_summary(output_path: Path, summary: dict[str, Any]) -> None:
