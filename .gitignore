@@ -8,3 +8,4 @@ temp/
 archive/
 __pycache__/
 *.pyc
+data/
