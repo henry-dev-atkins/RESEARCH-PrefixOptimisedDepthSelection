@@ -63,14 +63,6 @@
       "delta_vs_naive": NaN,
       "selected_depth": "d8",
       "verdict": "loss"
-    },
-    {
-      "dataset": "mnli",
-      "best_pods": "pods_sandwich",
-      "delta_vs_full": 0.001935812531839054,
-      "delta_vs_naive": NaN,
-      "selected_depth": "d12",
-      "verdict": "loss"
     }
   ],
   "formats": [

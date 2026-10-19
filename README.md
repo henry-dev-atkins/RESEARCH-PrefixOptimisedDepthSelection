@@ -36,18 +36,7 @@ $$
 
 The deployed model is the fixed prefix \(h_{d^*} \circ f_{\leq d^*}\). Selection happens offline, so inference does not need a controller, an early-exit decision, or the unused deeper layers.
 
-```mermaid
-flowchart LR
-    A[Train split] --> B[One deep model]
-    B --> C[Candidate prefixes]
-    V[Selection validation split] --> S[Measure quality and deployment cost]
-    C --> S
-    S --> D[Choose cheapest qualifying prefix]
-    D --> E[Export fixed prefix]
-    E --> F[Deploy]
-    T[Test split] --> R[Final report]
-    E --> R
-```
+![PODS training and deployment architecture diagram](paper/docs/excalidraw_diragram.svg)
 
 PODS is static offline prefix selection. It is not dynamic early exit. It does not claim that prefixes universally beat naive truncation or independently trained shallow models.
 
