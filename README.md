@@ -40,6 +40,14 @@ The deployed model is the fixed prefix \(h_{d^*} \circ f_{\leq d^*}\). Selection
 
 PODS is static offline prefix selection. It is not dynamic early exit. It does not claim that prefixes universally beat naive truncation or independently trained shallow models.
 
+## Result snapshots
+
+The core idea behind PODS is simple: a single deep model can expose multiple valid deployment prefixes, and the best choice depends on the quality-cost trade-off for the task at hand.
+
+![PODS quality-vs-depth trade-off across benchmark tasks](paper/figures/tradeoffs/depth_vs_metric_glue.svg)
+
+![PODS latency-quality Pareto comparison](paper/figures/tradeoffs/pareto_core_comparators_latency_new_tasks.svg)
+
 ## Experimental / WiP state
 
 The status below follows the documented [milestone validation record](pods/docs/milestone_validation.md). Raw and processed result artefacts are absent from the current checkout, so the numerical examples are reported historical evidence rather than fresh local verification.
